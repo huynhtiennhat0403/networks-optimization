@@ -1,11 +1,3 @@
-"""
-Improved Conditional GAN for Tabular Data
-- Fixes mode collapse with Dropout + Label Smoothing
-- Better architecture with BatchNorm
-- Gradient penalty for stability
-- Quality metrics tracking
-"""
-
 import os
 import numpy as np
 import pandas as pd
@@ -25,22 +17,22 @@ AUG_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "train_augmented.csv")
 GEN_PATH = os.path.join(MODEL_DIR, "tabular_cgan_generator.pt")
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-EPOCHS = 500  # Tăng lên
-BATCH_SIZE = 64  # Giảm xuống để stable hơn
+EPOCHS = 500  
+BATCH_SIZE = 64  
 NOISE_DIM = 64
-HIDDEN_DIM = 256  # Tăng capacity
-LR_G = 1e-4  # Generator learning rate thấp hơn
-LR_D = 4e-4  # Discriminator mạnh hơn 1 chút
+HIDDEN_DIM = 256  
+LR_G = 1e-4  
+LR_D = 4e-4  
 BETA1 = 0.5
-LAMBDA_GP = 10  # Gradient penalty weight
+LAMBDA_GP = 10  
 LABEL_SMOOTH = 0.1  # Label smoothing
 SEED = 42
 
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
-# ========= IMPROVED MODEL =========
-class ImprovedGenerator(nn.Module):
+# =========  MODEL =========
+class Generator(nn.Module):
     def __init__(self, noise_dim, n_classes, out_dim, hidden_dim=256, dropout=0.2):
         super().__init__()
         self.net = nn.Sequential(
@@ -67,7 +59,7 @@ class ImprovedGenerator(nn.Module):
         return self.net(torch.cat([z, c], dim=1))
 
 
-class ImprovedDiscriminator(nn.Module):
+class Discriminator(nn.Module):
     def __init__(self, in_dim, n_classes, hidden_dim=256, dropout=0.3):
         super().__init__()
         self.net = nn.Sequential(
@@ -80,7 +72,6 @@ class ImprovedDiscriminator(nn.Module):
             nn.Dropout(dropout),
             
             nn.Linear(hidden_dim, 1),
-            # Không dùng Sigmoid ở đây - sẽ dùng BCEWithLogitsLoss
         )
     
     def forward(self, x, c):
@@ -183,8 +174,8 @@ def main():
     n_features = X.shape[1]
 
     # ---- Models ----
-    G = ImprovedGenerator(NOISE_DIM, n_classes, n_features, hidden_dim=HIDDEN_DIM).to(DEVICE)
-    D = ImprovedDiscriminator(n_features, n_classes, hidden_dim=HIDDEN_DIM).to(DEVICE)
+    G = Generator(NOISE_DIM, n_classes, n_features, hidden_dim=HIDDEN_DIM).to(DEVICE)
+    D = Discriminator(n_features, n_classes, hidden_dim=HIDDEN_DIM).to(DEVICE)
     
     optG = optim.Adam(G.parameters(), lr=LR_G, betas=(BETA1, 0.999))
     optD = optim.Adam(D.parameters(), lr=LR_D, betas=(BETA1, 0.999))
@@ -192,7 +183,7 @@ def main():
     # BCEWithLogitsLoss tốt hơn BCE + Sigmoid
     loss_fn = nn.BCEWithLogitsLoss()
 
-    print("\n🚀 Training Improved Conditional GAN...")
+    print("\n🚀 Training  Conditional GAN...")
     print(f"Device: {DEVICE}")
     
     # Training history
@@ -278,7 +269,7 @@ def main():
     generated_rows = []
 
     G.eval()
-    with torch.no_grad():
+    with torch.inference_mode():
         for cls in vals:
             current = counts[list(vals).index(cls)]
             target = target_counts.get(cls, current)
