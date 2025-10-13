@@ -25,7 +25,7 @@ LR_G = 1e-4
 LR_D = 4e-4  
 BETA1 = 0.5
 LAMBDA_GP = 10  
-LABEL_SMOOTH = 0.1  # Label smoothing
+LABEL_SMOOTH = 0.1
 SEED = 42
 
 torch.manual_seed(SEED)
@@ -52,7 +52,7 @@ class Generator(nn.Module):
             nn.Dropout(dropout),
             
             nn.Linear(hidden_dim, out_dim),
-            nn.Tanh(),  # Tanh thay vì Sigmoid để tránh vanishing gradient
+            nn.Sigmoid(),  # Output [0, 1] vì features đã được scale [0, 1]
         )
     
     def forward(self, z, c):
@@ -147,27 +147,25 @@ def main():
     features = cont_cols + cat_cols + mod_cols
     print(f"Số feature: {len(features)} (cont={len(cont_cols)}, cat={len(cat_cols)}, onehot={len(mod_cols)})")
 
-    # ---- Encode label ----
-    label_map = {0.0: 0, 0.5: 1, 1.0: 2}
-    inv_label_map = {v: k for k, v in label_map.items()}
-    y = df[target_col].map(label_map).astype(int).values
+    # ---- Lấy label (ĐÃ được encode 0, 1, 2) ----
+    y = df[target_col].astype(int).values
 
-    # Scale data to [-1, 1] for Tanh
+    # ---- Lấy features (ĐÃ được scale [0, 1]) ----
     X = df[features].values.astype(np.float32)
-    X = 2 * X - 1  # [0,1] -> [-1,1]
     
-    n_classes = len(label_map)
+    n_classes = len(np.unique(y))
 
     # ---- Check imbalance ----
     vals, counts = np.unique(y, return_counts=True)
+    label_names = {0: 'Poor', 1: 'Moderate', 2: 'Good'}
     print("\n📊 Original RF Link Quality distribution:")
     for v, c in zip(vals, counts):
-        print(f"  Class {inv_label_map[v]} ({v}): {c} samples")
+        print(f"  Class {label_names[v]} ({v}): {c} samples")
 
     X_tensor = torch.tensor(X, device=DEVICE)
     y_tensor = torch.tensor(y, device=DEVICE)
     
-    # Stratified DataLoader để cân bằng batch
+    # DataLoader
     dataset = TensorDataset(X_tensor, y_tensor)
     loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
 
@@ -180,10 +178,9 @@ def main():
     optG = optim.Adam(G.parameters(), lr=LR_G, betas=(BETA1, 0.999))
     optD = optim.Adam(D.parameters(), lr=LR_D, betas=(BETA1, 0.999))
     
-    # BCEWithLogitsLoss tốt hơn BCE + Sigmoid
     loss_fn = nn.BCEWithLogitsLoss()
 
-    print("\n🚀 Training  Conditional GAN...")
+    print("\n🚀 Training Conditional GAN...")
     print(f"Device: {DEVICE}")
     
     # Training history
@@ -201,7 +198,7 @@ def main():
             # ---- Train D ----
             D.zero_grad()
             
-            # Label smoothing: real=0.9, fake=0.1
+            # Label smoothing
             real_label = torch.full((bs, 1), 1.0 - LABEL_SMOOTH, device=DEVICE)
             fake_label = torch.full((bs, 1), LABEL_SMOOTH, device=DEVICE)
 
@@ -212,11 +209,11 @@ def main():
             # Fake for D training
             z = torch.randn(bs, NOISE_DIM, device=DEVICE)
             
-            # Sample fake labels proportional to real distribution
-            fake_y = yb[torch.randperm(bs)]  # Shuffle real labels instead of random
+            # Sample fake labels
+            fake_y = yb[torch.randperm(bs)]
             fake_y_oh = nn.functional.one_hot(fake_y, n_classes).float()
             
-            fake_X_d = G(z, fake_y_oh).detach()  # Detach để không backprop vào G
+            fake_X_d = G(z, fake_y_oh).detach()
             out_fake = D(fake_X_d, fake_y_oh)
             loss_fake = loss_fn(out_fake, fake_label)
 
@@ -230,12 +227,11 @@ def main():
             # ---- Train G ----
             G.zero_grad()
             
-            # Generate NEW samples for G training
             z_g = torch.randn(bs, NOISE_DIM, device=DEVICE)
             fake_y_g = yb[torch.randperm(bs)]
             fake_y_oh_g = nn.functional.one_hot(fake_y_g, n_classes).float()
             
-            fake_X_g = G(z_g, fake_y_oh_g)  # Không detach - cần gradient
+            fake_X_g = G(z_g, fake_y_oh_g)
             out_gen = D(fake_X_g, fake_y_oh_g)
             loss_G = loss_fn(out_gen, real_label)
             loss_G.backward()
@@ -275,7 +271,7 @@ def main():
             target = target_counts.get(cls, current)
             need = max(0, target - current)
             
-            print(f"Class {inv_label_map[cls]} ({cls}): {current} -> {target} (generate {need})")
+            print(f"Class {label_names[cls]} ({cls}): {current} -> {target} (generate {need})")
 
             if need == 0:
                 continue
@@ -288,11 +284,10 @@ def main():
             
             gen = G(z, c).cpu().numpy()
             
-            # Scale back to [0, 1]
-            gen = (gen + 1) / 2
+            # Data đã ở [0, 1], không cần scale
 
             gen_df = pd.DataFrame(gen, columns=features)
-            gen_df[target_col] = inv_label_map[cls]
+            gen_df[target_col] = cls  # Giữ nguyên label 0, 1, 2
             generated_rows.append(gen_df)
 
     if not generated_rows:
@@ -315,28 +310,26 @@ def main():
     mod_array[np.arange(len(mod_array)), argmax_idx] = 1
     gen_df[mod_cols] = mod_array
 
-    # Clip continuous
+    # Clip continuous features to [0, 1]
     gen_df[cont_cols] = gen_df[cont_cols].clip(0, 1)
 
     # ---- Evaluate quality ----
     X_real = df[features].values
     y_real = y
     X_syn = gen_df[features].values
-    y_syn = gen_df[target_col].map(label_map).values
+    y_syn = gen_df[target_col].astype(int).values
     
     evaluate_synthetic_quality(X_real, y_real, X_syn, y_syn, features)
 
     # ---- Combine & save ----
-    # Scale real data back to [0,1] for combining
-    df_original = df.copy()
-    
-    df_aug = pd.concat([df_original, gen_df], ignore_index=True)
+    df_aug = pd.concat([df, gen_df], ignore_index=True)
     df_aug.to_csv(AUG_OUTPUT_PATH, index=False)
 
     print(f"\n✅ Saved augmented dataset to: {AUG_OUTPUT_PATH}")
     print("\n📊 Final class distribution:")
-    for k, v in df_aug[target_col].value_counts().sort_index().items():
-        print(f"  Class {k}: {v} samples")
+    for cls in sorted(df_aug[target_col].unique()):
+        count = (df_aug[target_col] == cls).sum()
+        print(f"  Class {label_names[int(cls)]} ({cls}): {count} samples")
 
 
 if __name__ == "__main__":
