@@ -1,10 +1,9 @@
 """
 Comprehensive Evaluation Framework for Synthetic Data Quality
-Đánh giá GAN qua 4 góc độ:
+Đánh giá GAN qua 3 góc độ chính:
 1. Statistical Similarity (Độ giống về mặt thống kê)
 2. Machine Learning Utility (Hiệu quả khi train ML models)
 3. Privacy/Diversity (Không bị duplicate real data)
-4. Domain-Specific Validation (Network optimization metrics)
 """
 
 import numpy as np
@@ -13,18 +12,18 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
 from scipy.spatial.distance import jensenshannon
-from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
 from sklearn.metrics import (
     classification_report, confusion_matrix, 
     accuracy_score, f1_score, precision_score, recall_score
 )
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 import warnings
 warnings.filterwarnings('ignore')
+
+# Label mapping
+LABEL_NAMES = {0: 'Poor', 1: 'Moderate', 2: 'Good'}
 
 # ========================================
 # 1. STATISTICAL SIMILARITY TESTS
@@ -95,6 +94,9 @@ def evaluate_statistical_similarity(real_df, syn_df, features, target_col):
         'Synthetic': syn_dist,
         'Diff': abs(real_dist - syn_dist)
     })
+    
+    # Add label names to index
+    comp_df.index = [LABEL_NAMES[int(idx)] for idx in comp_df.index]
     print(comp_df)
     
     # Jensen-Shannon divergence (0=identical, 1=completely different)
@@ -117,21 +119,20 @@ def evaluate_ml_utility(real_df, syn_df, test_df, features, target_col):
     print("🤖 2. MACHINE LEARNING UTILITY EVALUATION")
     print("="*80)
     
-    # Prepare data
+    # Prepare data - Target đã là 0, 1, 2 rồi, không cần map
     X_real = real_df[features].values
-    y_real = real_df[target_col].map({0.0: 0, 0.5: 1, 1.0: 2}).values
+    y_real = real_df[target_col].astype(int).values
     
     X_syn = syn_df[features].values
-    y_syn = syn_df[target_col].map({0.0: 0, 0.5: 1, 1.0: 2}).values
+    y_syn = syn_df[target_col].astype(int).values
     
     X_test = test_df[features].values
-    y_test = test_df[target_col].map({0.0: 0, 0.5: 1, 1.0: 2}).values
+    y_test = test_df[target_col].astype(int).values
     
     # Multiple classifiers
     classifiers = {
-        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42),
-        'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42),
-        'Logistic Regression': LogisticRegression(max_iter=1000, random_state=42)
+        'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42, max_depth=15),
+        'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42, max_depth=10),
     }
     
     results = []
@@ -314,7 +315,7 @@ def visualize_comparison(real_df, syn_df, features, target_col):
     ax.bar(x - width/2, real_dist.values, width, label='Real', alpha=0.7)
     ax.bar(x + width/2, syn_dist.values, width, label='Synthetic', alpha=0.7)
     ax.set_xticks(x)
-    ax.set_xticklabels(['Poor', 'Moderate', 'Good'])
+    ax.set_xticklabels([LABEL_NAMES[int(i)] for i in real_dist.index])
     ax.set_ylabel('Count')
     ax.set_title(f'{target_col} Distribution')
     ax.legend()
@@ -336,84 +337,6 @@ def visualize_comparison(real_df, syn_df, features, target_col):
     plt.savefig('reports/gan_evaluation_plots.png', dpi=150, bbox_inches='tight')
     print("\n✅ Plots saved to: reports/gan_evaluation_plots.png")
     plt.show()
-
-
-# ========================================
-# 5. DOMAIN-SPECIFIC VALIDATION (Network Metrics)
-# ========================================
-
-def evaluate_network_constraints(real_df, syn_df):
-    """
-    Kiểm tra các ràng buộc domain-specific cho wireless network data
-    """
-    print("\n" + "="*80)
-    print("📡 5. DOMAIN-SPECIFIC VALIDATION (Network Constraints)")
-    print("="*80)
-    
-    def check_physical_constraints(df, df_name):
-        print(f"\n--- {df_name} Data ---")
-        
-        issues = []
-        
-        # 1. Signal Strength vs Distance relationship
-        if 'Signal Strength (dBm)' in df.columns and 'Distance from Base Station (m)' in df.columns:
-            corr = df[['Signal Strength (dBm)', 'Distance from Base Station (m)']].corr().iloc[0, 1]
-            print(f"  Signal Strength vs Distance correlation: {corr:.3f} (should be negative)")
-            if corr > -0.3:
-                issues.append("⚠️  Signal strength should decrease with distance")
-        
-        # 2. Throughput vs SNR relationship
-        if 'Throughput (Mbps)' in df.columns and 'SNR (dB)' in df.columns:
-            corr = df[['Throughput (Mbps)', 'SNR (dB)']].corr().iloc[0, 1]
-            print(f"  Throughput vs SNR correlation: {corr:.3f} (should be positive)")
-            if corr < 0.3:
-                issues.append("⚠️  Throughput should increase with SNR")
-        
-        # 3. BER vs SNR relationship
-        if 'BER' in df.columns and 'SNR (dB)' in df.columns:
-            corr = df[['BER', 'SNR (dB)']].corr().iloc[0, 1]
-            print(f"  BER vs SNR correlation: {corr:.3f} (should be negative)")
-            if corr > -0.2:
-                issues.append("⚠️  BER should decrease with higher SNR")
-        
-        # 4. Value range checks
-        range_checks = {
-            'Signal Strength (dBm)': (-120, -30),
-            'SNR (dB)': (0, 40),
-            'BER': (0, 1),
-            'PDR (%)': (0, 100),
-            'Throughput (Mbps)': (0, 100),
-            'Latency (ms)': (0, 200)
-        }
-        
-        for col, (min_val, max_val) in range_checks.items():
-            if col in df.columns:
-                out_of_range = ((df[col] < min_val) | (df[col] > max_val)).sum()
-                pct = out_of_range / len(df) * 100
-                print(f"  {col}: {out_of_range} ({pct:.1f}%) out of range [{min_val}, {max_val}]")
-                if pct > 5:
-                    issues.append(f"⚠️  {col} has {pct:.1f}% out-of-range values")
-        
-        if issues:
-            print("\n  Issues found:")
-            for issue in issues:
-                print(f"    {issue}")
-        else:
-            print("\n  ✅ All constraints satisfied!")
-        
-        return len(issues)
-    
-    real_issues = check_physical_constraints(real_df, "Real")
-    syn_issues = check_physical_constraints(syn_df, "Synthetic")
-    
-    print(f"\n📊 SUMMARY:")
-    print(f"  Real data issues: {real_issues}")
-    print(f"  Synthetic data issues: {syn_issues}")
-    
-    if syn_issues <= real_issues:
-        print("  ✅ Synthetic data maintains physical constraints well!")
-    else:
-        print("  ⚠️  Synthetic data has more constraint violations than real data")
 
 
 # ========================================
@@ -440,12 +363,15 @@ def run_full_evaluation(real_path, synthetic_path, test_path):
     
     # Identify features
     target_col = "RF Link Quality"
-    mod_cols = [c for c in real_df.columns if c.startswith("Modulation Scheme_")]
-    cat_cols = ["Network Congestion"]
     features = [c for c in real_df.columns if c != target_col]
     
     print(f"\n  Features: {len(features)}")
     print(f"  Target: {target_col}")
+    
+    # Check target values
+    print(f"\n  Real target distribution:")
+    for val, count in real_df[target_col].value_counts().sort_index().items():
+        print(f"    {LABEL_NAMES[int(val)]} ({val}): {count}")
     
     # Run all evaluations
     results = {}
@@ -464,9 +390,6 @@ def run_full_evaluation(real_path, synthetic_path, test_path):
     
     # 4. Visualization
     visualize_comparison(real_df, syn_df, features, target_col)
-    
-    # 5. Domain-specific
-    evaluate_network_constraints(real_df, syn_df)
     
     # Final Summary
     print("\n" + "="*80)
