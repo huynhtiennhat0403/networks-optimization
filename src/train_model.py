@@ -128,6 +128,7 @@ def plot_confusion_matrix(cm, save_path=None):
     plt.tight_layout()
     
     if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"   💾 Confusion matrix saved to: {save_path}")
     

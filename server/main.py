@@ -3,20 +3,44 @@ FastAPI Server - Network Quality Prediction API
 Supports 3 prediction modes: Auto, Scenario, Simple
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional
 import uvicorn
 import logging
 import sys
 import os
+import time
 
-# Add parent directory to path to import utils
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# --- Add project root to sys.path ---
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
+# --- Define global base directory for consistent file paths ---
+BASE_DIR = PROJECT_ROOT
+
+# Import services
 from utils.model_wrapper import ModelWrapper
 from services.scenario_manager import ScenarioManager
+from services.smart_estimator import SmartEstimator
+
+# Import models from models folder
+from models.request_models import (
+    AutoPredictRequest,
+    ScenarioPredictRequest,
+    SimplePredictRequest
+)
+from models.response_models import (
+    PredictionResponse,
+    HealthResponse,
+    ScenarioInfo,
+    ScenarioListResponse,
+    ErrorResponse,
+    RootResponse
+)
 
 # Setup logging
 logging.basicConfig(
@@ -24,39 +48,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-# ==================== PYDANTIC MODELS ====================
-
-class PredictionResponse(BaseModel):
-    """Standard prediction response"""
-    prediction: int
-    prediction_label: str
-    confidence: float
-    probabilities: Dict[str, float]
-    message: str = ""
-
-class AutoPredictRequest(BaseModel):
-    """Request for Mode 1: Auto Collect"""
-    metrics: Dict[str, float] = Field(..., description="Network metrics collected automatically")
-
-class ScenarioPredictRequest(BaseModel):
-    """Request for Mode 2: Scenario Selection"""
-    scenario_id: int = Field(..., ge=1, description="ID of selected scenario")
-
-class SimplePredictRequest(BaseModel):
-    """Request for Mode 3: Simplified Input"""
-    throughput: float = Field(..., ge=1, le=100, description="Throughput in Mbps")
-    latency: float = Field(..., ge=1, le=100, description="Latency in ms")
-    signal_strength: float = Field(..., ge=-100, le=-40, description="Signal strength in dBm")
-    user_activity: str = Field(..., description="Current activity: browsing, streaming, gaming")
-    device_type: str = Field(default="laptop", description="Device type: laptop, phone, tablet")
-
-class HealthResponse(BaseModel):
-    """Health check response"""
-    status: str
-    model_loaded: bool
-    scenarios_loaded: int
-    version: str
 
 # ==================== FASTAPI APP ====================
 
@@ -75,6 +66,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ==================== GLOBAL ERROR HANDLERS ====================
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    """Handle validation/value errors"""
+    logger.error(f"ValueError: {str(exc)}")
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": "ValidationError",
+            "message": str(exc),
+            "details": None
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle general exceptions"""
+    logger.error(f"Unexpected error: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "InternalServerError",
+            "message": "An unexpected error occurred",
+            "details": str(exc) if logger.level == logging.DEBUG else None
+        }
+    )
+
 # ==================== GLOBAL INSTANCES ====================
 
 model_wrapper = None
@@ -86,28 +106,61 @@ async def startup_event():
     """Initialize services on startup"""
     global model_wrapper, scenario_manager, smart_estimator
     
+    start_time = time.time()
+    
     try:
-        logger.info("🚀 Starting server...")
+        logger.info("=" * 80)
+        logger.info("🚀 Starting Network Quality Prediction API Server...")
+        logger.info("=" * 80)
+        logger.info(f"📁 Project root: {PROJECT_ROOT}")
+        logger.info(f"📁 Base directory: {BASE_DIR}")
         
         # Load model
-        logger.info("Loading ML model...")
-        model_wrapper = ModelWrapper()
-        logger.info("✅ Model loaded successfully")
+        logger.info("\n📦 Loading ML model...")
+        try:
+            model_wrapper = ModelWrapper()
+            logger.info("✅ Model loaded successfully")
+            # Get model details if available
+            if hasattr(model_wrapper, 'feature_names'):
+                logger.info(f"   - Number of features: {len(model_wrapper.feature_names)}")
+            if hasattr(model_wrapper, 'model'):
+                logger.info(f"   - Model type: {type(model_wrapper.model).__name__}")
+        except Exception as e:
+            logger.error(f"❌ Failed to load model: {str(e)}")
+            raise
         
         # Load scenarios
-        logger.info("Loading scenarios...")
-        scenario_manager = ScenarioManager()
-        logger.info(f"✅ Loaded {len(scenario_manager.scenarios)} scenarios")
+        logger.info("\n🎬 Loading scenarios...")
+        try:
+            scenario_manager = ScenarioManager()
+            logger.info(f"✅ Loaded {len(scenario_manager.scenarios)} scenarios")
+            for scenario_id, scenario in scenario_manager.scenarios.items():
+                logger.info(f"   - Scenario {scenario_id}: {scenario.get('name', 'Unknown')}")
+        except Exception as e:
+            logger.error(f"❌ Failed to load scenarios: {str(e)}")
+            raise
         
         # Initialize estimator
-        logger.info("Initializing smart estimator...")
-        smart_estimator = SmartEstimator()
-        logger.info("✅ Smart estimator ready")
+        logger.info("\n🤖 Initializing smart estimator...")
+        try:
+            smart_estimator = SmartEstimator()
+            logger.info("✅ Smart estimator ready")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize estimator: {str(e)}")
+            raise
         
-        logger.info("🎉 Server ready to accept requests!")
+        elapsed_time = time.time() - start_time
+        logger.info("\n" + "=" * 80)
+        logger.info(f"🎉 Server ready to accept requests! (took {elapsed_time:.2f}s)")
+        logger.info(f"📚 API Docs: http://localhost:8000/docs")
+        logger.info(f"📚 Alternative Docs: http://localhost:8000/redoc")
+        logger.info("=" * 80 + "\n")
         
     except Exception as e:
-        logger.error(f"❌ Startup failed: {str(e)}")
+        elapsed_time = time.time() - start_time
+        logger.critical("=" * 80)
+        logger.critical(f"❌ Startup failed after {elapsed_time:.2f}s: {str(e)}")
+        logger.critical("=" * 80)
         raise
 
 # ==================== ENDPOINTS ====================
@@ -128,17 +181,44 @@ async def root():
     }
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
-async def health_check():
-    """Health check endpoint"""
+async def health_check(detailed: bool = False):
+    """
+    Health check endpoint
+    
+    Parameters:
+    - detailed: If true, return detailed component status
+    """
     try:
-        model_health = model_wrapper.health_check() if model_wrapper else {}
+        if not model_wrapper or not scenario_manager:
+            return HealthResponse(
+                status="unhealthy",
+                model_loaded=False,
+                scenarios_loaded=0,
+                version="1.0.0"
+            )
         
-        return HealthResponse(
-            status="healthy" if model_health.get('ready', False) else "unhealthy",
+        model_health = model_wrapper.health_check()
+        
+        # Determine overall status
+        all_ready = all([
+            model_health.get('ready', False),
+            scenario_manager.scenarios,
+            smart_estimator is not None
+        ])
+        
+        status = "healthy" if all_ready else ("degraded" if model_health.get('model_loaded') else "unhealthy")
+        
+        health_response = HealthResponse(
+            status=status,
             model_loaded=model_health.get('model_loaded', False),
-            scenarios_loaded=len(scenario_manager.scenarios) if scenario_manager else 0,
+            scenarios_loaded=len(scenario_manager.scenarios),
             version="1.0.0"
         )
+        
+        logger.info(f"Health check - Status: {status}, Model: {health_response.model_loaded}, Scenarios: {health_response.scenarios_loaded}")
+        
+        return health_response
+        
     except Exception as e:
         logger.error(f"Health check error: {str(e)}")
         raise HTTPException(status_code=500, detail="Health check failed")
