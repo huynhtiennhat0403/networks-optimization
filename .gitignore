@@ -211,6 +211,6 @@ __marimo__/
 data/processed/
 data/synthetic/
 
-models/
+/models/
 
 reports/
