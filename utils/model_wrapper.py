@@ -85,11 +85,12 @@ class ModelWrapper:
     
     def _extract_feature_names(self):
         """Extract feature names from training data"""
-        # This should match the feature order from training
-        # You can also save this during training for better consistency
         
-        # Continuous features (from your dataset)
-        continuous_features = [
+        # Đây là danh sách các cột TRƯỚC KHI one-hot encoding,
+        # và phải GIỮ NGUYÊN THỨ TỰ như trong file CSV gốc 
+        # (chỉ bỏ cột 'Modulation Scheme' gốc và cột target 'RF Link Quality')
+        
+        features_before_ohe = [
             'User Speed (m/s)',
             'User Direction (degrees)',
             'Handover Events',
@@ -98,6 +99,7 @@ class ModelWrapper:
             'SNR (dB)',
             'BER',
             'PDR (%)',
+            'Network Congestion',  # <-- Lỗi của bạn là do cột này bị sai thứ tự
             'Throughput (Mbps)',
             'Latency (ms)',
             'Retransmission Count',
@@ -106,14 +108,20 @@ class ModelWrapper:
             'Transmission Power (dBm)'
         ]
         
-        # Categorical features
-        categorical_features = ['Network Congestion']
-        
-        # One-hot encoded features (Modulation Scheme)
-        modulation_schemes = self.encoder.get_feature_names_out(['Modulation Scheme'])
+        # Lấy tên các cột one-hot từ encoder đã load
+        try:
+            modulation_schemes = self.encoder.get_feature_names_out(['Modulation Scheme'])
+        except Exception as e:
+            logger.warning(f"Could not get feature names from encoder: {e}. Using default.")
+            # Dự phòng nếu get_feature_names_out bị lỗi (hiếm)
+            # Bạn nên kiểm tra lại các giá trị này
+            modulation_schemes = ['Modulation Scheme_16-QAM', 'Modulation Scheme_64-QAM', 'Modulation Scheme_BPSK', 'Modulation Scheme_QPSK']
+
         
         # Combine all features in correct order
-        self.feature_names = continuous_features + categorical_features + list(modulation_schemes)
+        # Thứ tự này PHẢI KHỚP với thứ tự các cột của DataFrame `X`
+        # trong file processing_data.py
+        self.feature_names = features_before_ohe + list(modulation_schemes)
         
         logger.info(f"📊 Total features: {len(self.feature_names)}")
     
