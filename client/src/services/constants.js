@@ -11,16 +11,19 @@ export const QUALITY_COLORS = {
     bg: 'bg-danger-50',
     text: 'text-danger-700',
     border: 'border-danger-200',
+    icon: '❌',
   },
   Moderate: {
     bg: 'bg-warning-50',
     text: 'text-warning-700',
     border: 'border-warning-200',
+    icon: '⚠️',
   },
   Good: {
     bg: 'bg-success-50',
     text: 'text-success-700',
     border: 'border-success-200',
+    icon: '✅',
   },
 };
 
@@ -59,20 +62,82 @@ export const CONNECTION_TYPES = [
   { value: 'ethernet', label: 'Ethernet', icon: '🔌' },
 ];
 
-// Input validation ranges
+// Input validation ranges (based on actual data)
 export const INPUT_RANGES = {
-  throughput: { min: 1, max: 100, unit: 'Mbps' },
-  latency: { min: 1, max: 100, unit: 'ms' },
-  signal_strength: { min: -100, max: -40, unit: 'dBm' },
+  throughput: { min: 1, max: 100, unit: 'Mbps', step: 0.1 },
+  latency: { min: 1, max: 100, unit: 'ms', step: 0.1 },
+  signal_strength: { min: -100, max: -40, unit: 'dBm', step: 1 },
 };
 
 // Default values for Mode 1
 export const DEFAULT_VALUES = {
-  throughput: 45,
+  throughput: 50,
   latency: 25,
   signal_strength: -65,
   user_activity: 'browsing',
   device_type: 'laptop',
   location: 'home',
   connection_type: 'wifi',
+};
+
+// Network parameter display configuration
+export const PARAMETER_DISPLAY = {
+  'User Speed (m/s)': { label: 'User Speed', unit: 'm/s', decimals: 2, category: 'mobility' },
+  'User Direction (degrees)': { label: 'Direction', unit: '°', decimals: 1, category: 'mobility' },
+  'Handover Events': { label: 'Handovers', unit: '', decimals: 0, category: 'mobility' },
+  'Distance from Base Station (m)': { label: 'Distance to BS', unit: 'm', decimals: 1, category: 'signal' },
+  'Signal Strength (dBm)': { label: 'Signal Strength', unit: 'dBm', decimals: 1, category: 'signal' },
+  'SNR (dB)': { label: 'SNR', unit: 'dB', decimals: 2, category: 'signal' },
+  'BER': { label: 'Bit Error Rate', unit: '', decimals: 4, category: 'quality' },
+  'Modulation Scheme': { label: 'Modulation', unit: '', decimals: 0, category: 'quality' },
+  'PDR (%)': { label: 'Packet Delivery', unit: '%', decimals: 1, category: 'quality' },
+  'Network Congestion': { label: 'Congestion', unit: '', decimals: 0, category: 'quality' },
+  'Throughput (Mbps)': { label: 'Throughput', unit: 'Mbps', decimals: 1, category: 'performance' },
+  'Latency (ms)': { label: 'Latency', unit: 'ms', decimals: 1, category: 'performance' },
+  'Retransmission Count': { label: 'Retransmissions', unit: '', decimals: 0, category: 'performance' },
+  'Power Consumption (mW)': { label: 'Power Usage', unit: 'mW', decimals: 1, category: 'power' },
+  'Battery Level (%)': { label: 'Battery', unit: '%', decimals: 1, category: 'power' },
+  'Transmission Power (dBm)': { label: 'TX Power', unit: 'dBm', decimals: 1, category: 'power' },
+};
+
+// Parameter categories for organized display
+export const PARAMETER_CATEGORIES = {
+  mobility: { label: 'Mobility', icon: '🚶', color: 'blue' },
+  signal: { label: 'Signal Quality', icon: '📡', color: 'green' },
+  quality: { label: 'Connection Quality', icon: '🎯', color: 'purple' },
+  performance: { label: 'Performance', icon: '⚡', color: 'yellow' },
+  power: { label: 'Power & Battery', icon: '🔋', color: 'red' },
+};
+
+// Network Congestion mapping
+export const NETWORK_CONGESTION_MAP = {
+  0: 'Low',
+  1: 'Medium',
+  2: 'High',
+  'Low': 0,
+  'Medium': 1,
+  'High': 2,
+};
+
+// Modulation schemes
+export const MODULATION_SCHEMES = ['BPSK', 'QPSK', '16-QAM', '64-QAM'];
+
+// Helper function to format parameter value
+export const formatParameterValue = (paramName, value) => {
+  const config = PARAMETER_DISPLAY[paramName];
+  if (!config) return value;
+  
+  if (paramName === 'Network Congestion') {
+    return typeof value === 'number' ? NETWORK_CONGESTION_MAP[value] : value;
+  }
+  
+  if (paramName === 'Modulation Scheme') {
+    return value;
+  }
+  
+  if (config.decimals === 0) {
+    return Math.round(value);
+  }
+  
+  return Number(value).toFixed(config.decimals);
 };
