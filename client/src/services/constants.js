@@ -41,7 +41,6 @@ export const DEVICE_TYPES = [
   { value: 'phone', label: 'Smartphone', icon: '📱' },
   { value: 'laptop', label: 'Laptop', icon: '💻' },
   { value: 'tablet', label: 'Tablet', icon: '📲' },
-  { value: 'iot', label: 'IoT Device', icon: '🔌' },
 ];
 
 // Location types
@@ -56,10 +55,8 @@ export const LOCATIONS = [
 
 // Connection types
 export const CONNECTION_TYPES = [
-  { value: 'wifi', label: 'WiFi', icon: '📶' },
   { value: '4g', label: '4G/LTE', icon: '📡' },
   { value: '5g', label: '5G', icon: '🚀' },
-  { value: 'ethernet', label: 'Ethernet', icon: '🔌' },
 ];
 
 // Input validation ranges (based on actual data)
