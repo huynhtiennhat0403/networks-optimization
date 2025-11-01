@@ -14,7 +14,12 @@ const api = axios.create({
 // Request interceptor (for debugging)
 api.interceptors.request.use(
   (config) => {
-    console.log(`[API] ${config.method.toUpperCase()} ${config.url}`);
+    // Log request
+    if (config.data) {
+      console.log(`[API] ${config.method.toUpperCase()} ${config.url}`, config.data);
+    } else {
+      console.log(`[API] ${config.method.toUpperCase()} ${config.url}`);
+    }
     return config;
   },
   (error) => {
@@ -25,7 +30,6 @@ api.interceptors.request.use(
 // Response interceptor (for error handling)
 api.interceptors.response.use(
   (response) => {
-    console.log(`[API] Response:`, response.data);
     return response;
   },
   (error) => {
@@ -38,24 +42,31 @@ api.interceptors.response.use(
 
 /**
  * Mode 1: Smart Input Prediction
- * User provides 5 basic metrics, server estimates 10 more
+ * User cung cấp 5 thông số đo đạc + 4 bối cảnh
  */
 export const predictSimple = async (data) => {
-  const response = await api.post('/predict/simple', {
+  // 'data' object sẽ chứa tất cả 9 trường từ form
+  const payload = {
+    // 5 thông số đo đạc
+    user_speed: data.user_speed,
+    battery_level: data.battery_level,
     throughput: data.throughput,
     latency: data.latency,
     signal_strength: data.signal_strength,
-    user_activity: data.user_activity || 'browsing',
-    device_type: data.device_type || 'laptop',
-    location: data.location || 'home',
-    connection_type: data.connection_type || 'wifi',
-  });
+    
+    // 4 thông số bối cảnh
+    user_activity: data.user_activity,
+    device_type: data.device_type,
+    location: data.location,
+    connection_type: data.connection_type,
+  };
+  
+  const response = await api.post('/predict/simple', payload);
   return response.data;
 };
 
 /**
- * Mode 2: Scenario Selection
- * User selects a predefined scenario
+ * Mode 2: Scenario Selection 
  */
 export const predictScenario = async (scenarioId) => {
   const response = await api.post('/predict/scenario', {
@@ -65,15 +76,16 @@ export const predictScenario = async (scenarioId) => {
 };
 
 /**
- * Get all available scenarios
+ * Get all available scenarios 
  */
 export const getScenarios = async () => {
+  // Sửa: Dùng endpoint /scenarios/list
   const response = await api.get('/scenarios/list');
   return response.data;
 };
 
 /**
- * Get specific scenario details
+ * Get specific scenario details 
  */
 export const getScenarioDetails = async (scenarioId) => {
   const response = await api.get(`/scenarios/${scenarioId}`);
@@ -81,7 +93,7 @@ export const getScenarioDetails = async (scenarioId) => {
 };
 
 /**
- * Health check
+ * Health check 
  */
 export const healthCheck = async () => {
   const response = await api.get('/health');

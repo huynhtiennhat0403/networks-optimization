@@ -36,14 +36,14 @@ export const USER_ACTIVITIES = [
   { value: 'video_call', label: 'Video Call', icon: '📞' },
 ];
 
-// Device types
+// Device types 
 export const DEVICE_TYPES = [
   { value: 'phone', label: 'Smartphone', icon: '📱' },
   { value: 'laptop', label: 'Laptop', icon: '💻' },
   { value: 'tablet', label: 'Tablet', icon: '📲' },
 ];
 
-// Location types
+// Location types 
 export const LOCATIONS = [
   { value: 'home', label: 'Home', icon: '🏠' },
   { value: 'office', label: 'Office', icon: '🏢' },
@@ -52,20 +52,29 @@ export const LOCATIONS = [
   { value: 'event', label: 'Crowded Event', icon: '🎉' },
 ];
 
-// Connection types
+// Connection types 
 export const CONNECTION_TYPES = [
   { value: '4g', label: '4G/LTE', icon: '📡' },
   { value: '5g', label: '5G', icon: '🚀' },
 ];
 
-// Input validation ranges (based on actual data)
+// Bảng quy đổi Vạch sóng
+export const SIGNAL_BARS_MAP = [
+  { label: '★☆☆☆ (1 vạch - Rất yếu)', value: -105.0 },
+  { label: '★★☆☆ (2 vạch - Yếu)', value: -95.0 },
+  { label: '★★★☆ (3 vạch - Trung bình)', value: -85.0 },
+  { label: '★★★★ (4 vạch - Mạnh)', value: -75.0 },
+];
+
+// Input validation ranges
 export const INPUT_RANGES = {
-  throughput: { min: 1, max: 100, unit: 'Mbps', step: 0.1 },
-  latency: { min: 1, max: 100, unit: 'ms', step: 0.1 },
-  signal_strength: { min: -100, max: -40, unit: 'dBm', step: 1 },
+  throughput: { min: 1, max: 1000, unit: 'Mbps', step: 0.1 },
+  latency: { min: 1, max: 1000, unit: 'ms', step: 0.1 },
+  user_speed: { min: 0, max: 120, unit: 'km/h', step: 1 },
+  battery_level: { min: 0, max: 100, unit: '%', step: 1 },
 };
 
-// Default values for Mode 1
+// Default values for Mode 1 (Simple)
 export const DEFAULT_VALUES = {
   throughput: 50.0,
   latency: 85.0,
@@ -78,7 +87,7 @@ export const DEFAULT_VALUES = {
   connection_type: '4g', 
 };
 
-// Network parameter display configuration
+// ... (PARAMETER_DISPLAY, PARAMETER_CATEGORIES, etc.) ...
 export const PARAMETER_DISPLAY = {
   'User Speed (m/s)': { label: 'User Speed', unit: 'm/s', decimals: 2, category: 'mobility' },
   'User Direction (degrees)': { label: 'Direction', unit: '°', decimals: 1, category: 'mobility' },
@@ -98,7 +107,6 @@ export const PARAMETER_DISPLAY = {
   'Transmission Power (dBm)': { label: 'TX Power', unit: 'dBm', decimals: 1, category: 'power' },
 };
 
-// Parameter categories for organized display
 export const PARAMETER_CATEGORIES = {
   mobility: { label: 'Mobility', icon: '🚶', color: 'blue' },
   signal: { label: 'Signal Quality', icon: '📡', color: 'green' },
@@ -107,7 +115,6 @@ export const PARAMETER_CATEGORIES = {
   power: { label: 'Power & Battery', icon: '🔋', color: 'red' },
 };
 
-// Network Congestion mapping
 export const NETWORK_CONGESTION_MAP = {
   0: 'Low',
   1: 'Medium',
@@ -117,10 +124,8 @@ export const NETWORK_CONGESTION_MAP = {
   'High': 2,
 };
 
-// Modulation schemes
 export const MODULATION_SCHEMES = ['BPSK', 'QPSK', '16-QAM', '64-QAM'];
 
-// Helper function to format parameter value
 export const formatParameterValue = (paramName, value) => {
   const config = PARAMETER_DISPLAY[paramName];
   if (!config) return value;
