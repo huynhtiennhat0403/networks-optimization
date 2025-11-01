@@ -395,11 +395,11 @@ class SmartEstimator:
         
         # Map score to congestion label
         if congestion_score <= 2:
-            return 'Low'
+            return 0
         elif congestion_score <= 4:
-            return 'Medium'
+            return 1
         else:
-            return 'High'
+            return 2
     
     
     def _estimate_transmission_power(self, signal: float, snr: float) -> float:
