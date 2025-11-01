@@ -21,20 +21,34 @@ class ModelWrapper:
     """
     
     def __init__(self, 
-                 model_path: str = "models/rf_model.pkl",
-                 scaler_path: str = "models/minmax_scaler.pkl",
-                 encoder_path: str = "models/onehot_encoder.pkl"):
+                 base_dir: str = None, # <-- 1. THÊM THAM SỐ NÀY
+                 model_name: str = "rf_model.pkl",
+                 scaler_name: str = "minmax_scaler.pkl",
+                 encoder_name: str = "onehot_encoder.pkl"):
         """
         Initialize the model wrapper
         
         Args:
-            model_path: Path to trained model
-            scaler_path: Path to MinMaxScaler
-            encoder_path: Path to OneHotEncoder
+            base_dir: Đường dẫn tuyệt đối đến thư mục gốc của dự án
+            model_name: Tên file model
+            scaler_name: Tên file scaler
+            encoder_name: Tên file encoder
         """
-        self.model_path = model_path
-        self.scaler_path = scaler_path
-        self.encoder_path = encoder_path
+        
+        # --- 2. XÂY DỰNG ĐƯỜNG DẪN TUYỆT ĐỐI ---
+        if base_dir is None:
+            # Nếu không cung cấp, tự động tìm thư mục gốc (lùi 1 cấp từ utils)
+            base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+        logger.info(f"ModelWrapper initializing with base_dir: {base_dir}")
+        
+        # Đường dẫn đến thư mục 'models' ở gốc dự án
+        models_dir = os.path.join(base_dir, "models")
+        
+        self.model_path = os.path.join(models_dir, model_name)
+        self.scaler_path = os.path.join(models_dir, scaler_name)
+        self.encoder_path = os.path.join(models_dir, encoder_name)
+        # --- KẾT THÚC SỬA ĐỔI ---
         
         self.model = None
         self.scaler = None

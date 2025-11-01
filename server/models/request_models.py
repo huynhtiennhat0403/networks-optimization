@@ -4,48 +4,7 @@ Pydantic Request Models
 """
 
 from pydantic import BaseModel, Field, field_validator as validator
-from typing import Dict, Optional
-
-
-class AutoPredictRequest(BaseModel):
-    """
-    Mode 1: Auto Collect
-    Client tự động thu thập đầy đủ network metrics
-    """
-    metrics: Dict[str, float] = Field(
-        ..., 
-        description="Complete network metrics collected automatically",
-        example={
-            "Throughput (Mbps)": 45.5,
-            "Latency (ms)": 25.3,
-            "Signal Strength (dBm)": -65.0,
-            "SNR (dB)": 22.5,
-            "Packet Loss (%)": 1.2,
-            "Jitter (ms)": 5.8,
-            "Network Congestion": 1,
-            "Bandwidth (MHz)": 40,
-            "Frequency (GHz)": 5.0,
-            "Hour": 14,
-            "Day of Week": 2,
-            "Device Type": 0,
-            "User Activity": 1,
-            "Location": 0,
-            "Connection Type": 0,
-            "Connected Devices": 5,
-            "Modulation Scheme_16-QAM": 0,
-            "Modulation Scheme_256-QAM": 1,
-            "Modulation Scheme_64-QAM": 0,
-            "Modulation Scheme_QPSK": 0
-        }
-    )
-
-    @validator('metrics')
-    def validate_metrics(cls, v):
-        """Validate that metrics dict is not empty"""
-        if not v:
-            raise ValueError("Metrics dictionary cannot be empty")
-        return v
-
+from typing import Optional
 
 class ScenarioPredictRequest(BaseModel):
     """
@@ -63,14 +22,15 @@ class ScenarioPredictRequest(BaseModel):
 class SimplePredictRequest(BaseModel):
     """
     Mode 3: Simplified Input
-    Client chỉ cung cấp 3-5 thông số cơ bản, server tự estimate phần còn lại
+    Client cung cấp 5 thông số user input + optional contexts
+    Server tự estimate phần còn lại
     """
-    # Required fields (5 core metrics)
+    # Required fields (5 user inputs)
     user_speed: float = Field(
         ..., 
         ge=0, 
         le=120, 
-        description="User speed in km/h", # Client gửi km/h
+        description="User speed in km/h (user manually inputs)",
         example=30.0
     )
 
@@ -86,23 +46,23 @@ class SimplePredictRequest(BaseModel):
         ..., 
         ge=-120, 
         le=-50, 
-        description="Estimated WiFi signal strength in dBm (từ vạch sóng)",
-        example=-85.0
+        description="Signal strength in dBm (estimated from signal bars: 1-4)",
+        example=-75.0
     )
 
-    measured_latency: float = Field(
+    latency: float = Field(
         ...,
         ge=1,
         le=1000,
-        description="Measured latency in ms (do client tự đo)",
+        description="Latency in ms (user inputs from speedtest apps)",
         example=45.5
     )
 
-    measured_throughput: float = Field(
+    throughput: float = Field(
         ...,
         ge=1,
         le=1000,
-        description="Measured throughput in Mbps (do client tự đo)",
+        description="Throughput in Mbps (user inputs from speedtest apps)",
         example=50.2
     )
     
@@ -115,7 +75,7 @@ class SimplePredictRequest(BaseModel):
     
     device_type: Optional[str] = Field(
         default="laptop",
-        description="Device type: phone, laptop, tablet, iot",
+        description="Device type: phone, laptop, tablet",
         example="laptop"
     )
     
@@ -126,9 +86,9 @@ class SimplePredictRequest(BaseModel):
     )
     
     connection_type: Optional[str] = Field(
-        default="wifi",
-        description="Connection type: wifi, 4g, 5g, ethernet",
-        example="wifi"
+        default="4g",
+        description="Connection type: 4g, 5g",
+        example="4g"
     )
 
     @validator('user_activity')
@@ -142,7 +102,7 @@ class SimplePredictRequest(BaseModel):
     @validator('device_type')
     def validate_device(cls, v):
         """Validate device type"""
-        valid = ['phone', 'laptop', 'tablet', 'iot']
+        valid = ['phone', 'laptop', 'tablet']
         if v.lower() not in valid:
             raise ValueError(f"device_type must be one of {valid}")
         return v.lower()
@@ -150,7 +110,7 @@ class SimplePredictRequest(BaseModel):
     @validator('location')
     def validate_location(cls, v):
         """Validate location"""
-        valid = ['home', 'office', 'public', 'outdoor']
+        valid = ['home', 'office', 'public', 'outdoor', 'vehicle']
         if v.lower() not in valid:
             raise ValueError(f"location must be one of {valid}")
         return v.lower()
@@ -158,7 +118,7 @@ class SimplePredictRequest(BaseModel):
     @validator('connection_type')
     def validate_connection(cls, v):
         """Validate connection type"""
-        valid = ['wifi', '4g', '5g', 'ethernet']
+        valid = ['4g', '5g']
         if v.lower() not in valid:
             raise ValueError(f"connection_type must be one of {valid}")
         return v.lower()

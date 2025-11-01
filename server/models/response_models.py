@@ -96,7 +96,7 @@ class ScenarioInfo(BaseModel):
     description: str = Field(..., description="Scenario description", example="Ideal home network conditions")
     category: str = Field(..., description="Scenario category", example="home")
     expected_quality: str = Field(..., description="Expected quality", example="Good")
-    parameters: Optional[Dict[str, float]] = Field(
+    parameters: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Network parameters for this scenario"
     )
