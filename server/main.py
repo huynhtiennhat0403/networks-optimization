@@ -13,13 +13,9 @@ import os
 import time
 
 # --- Thêm project root vào sys.path ---
-
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-
-# --- Định nghĩa BASE_DIR ---
-
 BASE_DIR = PROJECT_ROOT
 
 # ==================== IMPORTS ====================
@@ -28,13 +24,15 @@ from .routers import predict as predict_router
 from .routers import scenarios as scenarios_router
 
 # 2. Import các services
-
 from utils.model_wrapper import ModelWrapper
 from .services.scenario_manager import ScenarioManager
 from .services.smart_estimator import SmartEstimator
 
 # 3. Import các response models 
-from .models.response_models import HealthResponse
+from .models.response_models import HealthResponse, PredictionResponse
+
+# 4. --- Import Socket.IO ---
+import socketio
 
 # Setup logging
 
@@ -152,21 +150,15 @@ app.include_router(scenarios_router.router)
 async def root():
     """Root endpoint"""
     return {
-        "message": "Network Quality Prediction API (Modes: Scenario, Simple)",
-        "version": "1.1.0",
-        "endpoints": {
-            "health": "/health",
-            "scenarios": "/scenarios/list",
-            "predict_scenario": "/predict/scenario",
-            "predict_simple": "/predict/simple",
-            "modes_info": "/predict/modes" # Endpoint mới từ predict.py
-        }
+        "message": "Network Quality Prediction API (Modes: Scenario, Simple, Real-time)",
+        "version": "1.2.0",
+        "rest_api_docs": "/docs",
+        "websocket_path": "/ws/socket.io"
     }
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check(detailed: bool = False):
     """Health check endpoint"""
-    # (Phần này giữ nguyên logic cũ)
     try:
         if not model_wrapper or not scenario_manager:
             raise HTTPException(status_code=503, detail="Services not initialized")
@@ -195,18 +187,143 @@ async def health_check(detailed: bool = False):
         logger.error(f"Health check error: {str(e)}")
         raise HTTPException(status_code=500, detail="Health check failed")
 
-# ==================== RUN SERVER ====================
+# ==========================================================
+# --- CÀI ĐẶT SOCKET.IO (WEBSOCKET) ---
+# ==========================================================
 
+# 1. Tạo đối tượng Socket.IO Server (sio)
+sio = socketio.AsyncServer(
+    async_mode="asgi",
+    cors_allowed_origins="*", # Cho phép React và Worker kết nối
+    logger=True,
+    engineio_logger=True
+)
+
+# 2. Tạo ứng dụng ASGI cho Socket.IO
+socket_app = socketio.ASGIApp(
+    sio,
+    socketio_path="/ws/socket.io"
+)
+
+# 3. Mount ứng dụng Socket.IO vào FastAPI
+# Bất kỳ request nào tới /ws đều sẽ do socket_app xử lý
+app.mount("/ws", socket_app)
+
+# 4. --- Bộ lưu trữ trạng thái ---
+# Dùng để lưu trữ dữ liệu tạm thời từ Worker và React
+# Key là `sid` (session ID) của client, value là dict chứa metrics và context
+client_state = {}
+
+async def trigger_prediction(sid: str):
+    """
+    Hàm lõi: Khi có đủ 2 phần dữ liệu (metrics + context),
+    gọi SmartEstimator và Model, sau đó gửi trả kết quả.
+    """
+    global model_wrapper, smart_estimator
+    
+    state = client_state.get(sid)
+    
+    # Kiểm tra xem đã đủ 2 phần dữ liệu chưa
+    if not state or "metrics" not in state or "context" not in state:
+        logger.debug(f"[{sid}] Chưa đủ dữ liệu, đang chờ...")
+        return
+
+    try:
+        logger.info(f"[{sid}] Đã đủ 2 phần dữ liệu, bắt đầu dự đoán...")
+        
+        # 1. Gom 9 thông số
+        # 4 từ worker, 5 từ react
+        simple_input = {
+            **state["metrics"], # Gồm: latency, throughput, battery_level, signal_strength
+            **state["context"]  # Gồm: user_speed, user_activity, device_type, location, connection_type
+        }
+        
+        # 2. Ước tính (Giống hệt predict_simple)
+        full_params = smart_estimator.estimate(simple_input)
+        logger.info(f"[{sid}] Đã ước tính {len(full_params)} thông số.")
+        
+        # 3. Dự đoán (Giống hệt predict_simple)
+        result = model_wrapper.predict(full_params)
+        logger.info(f"[{sid}] Kết quả: {result['prediction_label']}")
+
+        # 4. Chuẩn bị response (Giống hệt predict_simple)
+        response = PredictionResponse(
+            prediction=result['prediction'],
+            prediction_label=result['prediction_label'],
+            confidence=result['confidence'],
+            probabilities=result['probabilities'],
+            message="Prediction based on real-time auto-collected metrics",
+            mode="realtime", # Mode mới
+            metadata={
+                "estimated_features_dict": full_params, # Gửi toàn bộ params đã ước tính
+                "contexts_used": state["context"]
+            }
+        )
+        
+        # 5. Gửi kết quả NGƯỢC LẠI cho React Dashboard
+        await sio.emit(
+            "prediction_update",  # Tên sự kiện
+            response.model_dump(),  # Chuyển Pydantic model về dict
+            to=sid                   # Chỉ gửi cho client này
+        )
+        logger.info(f"[{sid}] Đã gửi 'prediction_update' cho client.")
+
+    except Exception as e:
+        logger.error(f"[{sid}] Lỗi khi dự đoán real-time: {e}")
+        # Gửi lỗi về cho React
+        await sio.emit("prediction_error", {"error": str(e)}, to=sid)
+
+# 5. --- Các trình xử lý sự kiện (Event Handlers) ---
+
+@sio.event
+async def connect(sid, environ, auth):
+    """Client (Worker hoặc React) kết nối"""
+    logger.info(f"📡 Client đã kết nối: {sid}")
+    # Khởi tạo bộ lưu trữ trạng thái rỗng cho client này
+    client_state[sid] = {}
+
+@sio.event
+async def disconnect(sid):
+    """Client ngắt kết nối"""
+    logger.warning(f"🔌 Client đã ngắt kết nối: {sid}")
+    # Xóa trạng thái của client này
+    if sid in client_state:
+        del client_state[sid]
+
+@sio.event
+async def worker_metrics(sid, data):
+    """
+    Nhận dữ liệu từ 'worker.py' (4 thông số)
+    """
+    logger.info(f"[{sid}] Nhận 'worker_metrics': {data}")
+    if sid in client_state:
+        client_state[sid]["metrics"] = data
+        # Gọi hàm lõi để kiểm tra và dự đoán
+        await trigger_prediction(sid)
+
+@sio.event
+async def context_update(sid, data):
+    """
+    Nhận dữ liệu từ 'React Dashboard' (5 thông số bối cảnh)
+    """
+    logger.info(f"[{sid}] Nhận 'context_update': {data}")
+    if sid in client_state:
+        client_state[sid]["context"] = data
+        # Gọi hàm lõi để kiểm tra và dự đoán
+        await trigger_prediction(sid)
+
+# ==================== RUN SERVER ====================
 if __name__ == "__main__":
     print("="*80)
-    print("🚀 NETWORK QUALITY PREDICTION SERVER (v1.1.0)")
+    print("🚀 NETWORK QUALITY PREDICTION SERVER (v1.2.0 - Real-time)")
     print("="*80)
-    print("\n📍 Server will start on: http://localhost:8000")
-    print("📚 API Docs: http://localhost:8000/docs")
+    print("\n📍 Server sẽ start on: http://localhost:8000")
+    print("📚 API Docs (REST): http://localhost:8000/docs")
+    print(f"📡 Socket.IO (WS) listening on: /ws/socket.io")
     print("\n⏳ Starting server...\n")
     
+    # uvicorn.run sẽ tự động chạy 'app' (đã bao gồm cả FastAPI và Socket.IO)
     uvicorn.run(
-        # Sửa ở đây: trỏ đến app trong file main.py của thư mục 'server'
         "server.main:app", 
         host="0.0.0.0",
         port=8000,
