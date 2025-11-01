@@ -47,7 +47,6 @@ export const DEVICE_TYPES = [
 export const LOCATIONS = [
   { value: 'home', label: 'Home', icon: '🏠' },
   { value: 'office', label: 'Office', icon: '🏢' },
-  { value: 'public', label: 'Public Place', icon: '🏪' },
   { value: 'outdoor', label: 'Outdoor', icon: '🌳' },
   { value: 'vehicle', label: 'Vehicle', icon: '🚗' },
   { value: 'event', label: 'Crowded Event', icon: '🎉' },
@@ -68,13 +67,15 @@ export const INPUT_RANGES = {
 
 // Default values for Mode 1
 export const DEFAULT_VALUES = {
-  throughput: 50,
-  latency: 25,
-  signal_strength: -65,
+  throughput: 50.0,
+  latency: 85.0,
+  signal_strength: -85.0, // Default là 3 vạch
+  user_speed: 0,
+  battery_level: 100,
   user_activity: 'browsing',
-  device_type: 'laptop',
+  device_type: 'phone', 
   location: 'home',
-  connection_type: 'wifi',
+  connection_type: '4g', 
 };
 
 // Network parameter display configuration
