@@ -7,10 +7,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict
 import logging
 
-from models.request_models import AutoPredictRequest, ScenarioPredictRequest, SimplePredictRequest
-from models.response_models import PredictionResponse
-from services.scenario_manager import ScenarioManager
-from services.smart_estimator import SmartEstimator
+from ..models.request_models import AutoPredictRequest, ScenarioPredictRequest, SimplePredictRequest
+from ..models.response_models import PredictionResponse
+from ..services.scenario_manager import ScenarioManager
+from ..services.smart_estimator import SmartEstimator
 
 logger = logging.getLogger(__name__)
 

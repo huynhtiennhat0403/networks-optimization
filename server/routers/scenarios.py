@@ -7,8 +7,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Optional, List
 import logging
 
-from models.response_models import ScenarioListResponse, ScenarioInfo
-from services.scenario_manager import ScenarioManager
+from ..models.response_models import ScenarioListResponse, ScenarioInfo
+from ..services.scenario_manager import ScenarioManager
 
 logger = logging.getLogger(__name__)
 

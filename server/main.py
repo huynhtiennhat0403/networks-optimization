@@ -24,16 +24,16 @@ BASE_DIR = PROJECT_ROOT
 
 # Import services
 from utils.model_wrapper import ModelWrapper
-from services.scenario_manager import ScenarioManager
-from services.smart_estimator import SmartEstimator
+from .services.scenario_manager import ScenarioManager
+from .services.smart_estimator import SmartEstimator
 
 # Import models from models folder
-from models.request_models import (
+from .models.request_models import (
     AutoPredictRequest,
     ScenarioPredictRequest,
     SimplePredictRequest
 )
-from models.response_models import (
+from .models.response_models import (
     PredictionResponse,
     HealthResponse,
     ScenarioInfo,
