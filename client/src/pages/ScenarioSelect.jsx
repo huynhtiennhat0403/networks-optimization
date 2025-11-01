@@ -153,9 +153,6 @@ function ScenarioSelect() {
                     <span className={`text-xs px-2 py-1 rounded-full border ${getQualityColor(scenario.expected_quality)}`}>
                       Expected: {scenario.expected_quality}
                     </span>
-                    <span className="text-xs text-gray-500">
-                      {scenario.category ? `📂 ${scenario.category}` : ''}
-                    </span>
                   </div>
                 </button>
               ))}
