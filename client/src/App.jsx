@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { Network, Zap, ListChecks } from 'lucide-react';
+import { Network, Zap, ListChecks, Activity } from 'lucide-react';
 import Home from './pages/Home';
 import SmartInput from './pages/SmartInput';
 import ScenarioSelect from './pages/ScenarioSelect';
+import RealtimeDashboard from './pages/RealtimeDashboard';
 
 function Navbar() {
   const location = useLocation();
@@ -24,6 +25,18 @@ function Navbar() {
           </Link>
           
           <div className="flex items-center space-x-2">
+            <Link
+              to="/realtime" 
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
+                isActive('/realtime')
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+              <span className="font-medium">Real-time</span>
+            </Link>
+
             <Link
               to="/smart-input"
               className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all ${
@@ -83,6 +96,7 @@ function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/realtime" element={<RealtimeDashboard />} />
             <Route path="/smart-input" element={<SmartInput />} />
             <Route path="/scenarios" element={<ScenarioSelect />} />
           </Routes>
