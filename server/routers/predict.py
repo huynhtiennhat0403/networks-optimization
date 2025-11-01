@@ -4,13 +4,10 @@ Handles all prediction endpoints for 3 modes
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict
 import logging
 
 from ..models.request_models import  ScenarioPredictRequest, SimplePredictRequest
 from ..models.response_models import PredictionResponse
-from ..services.scenario_manager import ScenarioManager
-from ..services.smart_estimator import SmartEstimator
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +115,7 @@ async def predict_simple(
     estimator=Depends(get_smart_estimator)
 ):
     """
-    Mode 3: Simplified Input
+    Mode 1: Simplified Input
     
     Client sends 5 key parameters (all user inputs):
     - **user_speed** (km/h) - User manually inputs their speed
@@ -225,14 +222,6 @@ async def list_prediction_modes():
     return {
         "modes": [
             {
-                "name": "auto",
-                "endpoint": "/predict/auto",
-                "description": "Auto-collect full network metrics",
-                "required_features": "All network parameters (auto-collected)",
-                "use_case": "Desktop/mobile apps with full network access",
-                "input_count": "~20 features"
-            },
-            {
                 "name": "scenario",
                 "endpoint": "/predict/scenario",
                 "description": "Select from predefined scenarios",
@@ -272,7 +261,6 @@ async def list_prediction_modes():
             }
         ],
         "recommendation": {
-            "for_developers": "Use 'auto' mode for maximum accuracy",
             "for_users": "Use 'simple' mode for easy manual input",
             "for_testing": "Use 'scenario' mode for quick demos"
         }
