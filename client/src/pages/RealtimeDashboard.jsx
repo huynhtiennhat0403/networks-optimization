@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { Wifi, WifiOff, Zap, Server, Activity } from 'lucide-react';
+import { Wifi, WifiOff, Zap, Server, Activity, Send, RefreshCw } from 'lucide-react';
 import {
   USER_ACTIVITIES,
   DEVICE_TYPES,
@@ -17,6 +17,8 @@ const SERVER_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const SOCKETIO_PATH = "/ws/socket.io";
 
 function RealtimeDashboard() {
+  const [isPredicting, setIsPredicting] = useState(false);
+
   const [contextData, setContextData] = useState({
     // 5 thông số bối cảnh
     user_speed: DEFAULT_VALUES.user_speed,
@@ -29,7 +31,6 @@ function RealtimeDashboard() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [isWorkerConnected, setIsWorkerConnected] = useState(false);
   
   // Dùng useRef để socket tồn tại qua các lần render
   const socketRef = useRef(null);
@@ -47,33 +48,29 @@ function RealtimeDashboard() {
     socket.on('connect', () => {
       console.log('Socket.IO: Đã kết nối tới server');
       setIsConnected(true);
-      // Gửi bối cảnh ban đầu ngay khi kết nối
-      socket.emit('context_update', contextData);
+      setError(null);
     });
 
     socket.on('disconnect', () => {
       console.warn('Socket.IO: Đã ngắt kết nối');
       setIsConnected(false);
-      setIsWorkerConnected(false); // Khi mất kết nối, reset trạng thái worker
-      setError('Đã mất kết nối tới server. Đang thử kết nối lại...');
+      setIsPredicting(false); // Dừng dự đoán nếu mất kết nối
+      setError('Đã mất kết nối tới server.');
     });
 
-    // Sự kiện: Server phát (broadcast) kết quả dự đoán
     socket.on('prediction_update', (predictionData) => {
       console.log('Nhận [prediction_update]:', predictionData);
       setResult(predictionData);
       setError(null);
-      // Đánh dấu là worker đã gửi dữ liệu
-      if (!isWorkerConnected) setIsWorkerConnected(true);
+      setIsPredicting(false); // --- MỚI: Dừng loading khi có kết quả
     });
     
-    // Sự kiện: Server báo lỗi
     socket.on('prediction_error', (errorData) => {
       console.error('Nhận [prediction_error]:', errorData);
       setError(errorData.error || 'Lỗi từ server');
+      setIsPredicting(false); // --- MỚI: Dừng loading khi có lỗi
     });
 
-    // Cleanup: Ngắt kết nối khi component bị unmount
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -81,13 +78,21 @@ function RealtimeDashboard() {
     };
   }, []); // Chỉ chạy 1 lần khi mount
 
-  // --- 3. Gửi 'context_update' khi người dùng thay đổi lựa chọn ---
-  useEffect(() => {
+  const handleStartPrediction = () => {
     if (socketRef.current && isConnected) {
-      console.log('Gửi [context_update]:', contextData);
-      socketRef.current.emit('context_update', contextData);
+      console.log('Gửi [start_prediction]:', contextData);
+      
+      // Xóa kết quả cũ, bật loading
+      setIsPredicting(true); 
+      setResult(null);
+      setError(null);
+      
+      // Gửi lệnh cho server
+      socketRef.current.emit('start_prediction', contextData);
+    } else {
+      setError("Chưa kết nối tới server. Vui lòng thử lại.");
     }
-  }, [contextData, isConnected]); // Chạy lại khi contextData hoặc isConnected thay đổi
+  };
 
   // Hàm xử lý khi form thay đổi
   const handleChange = (field, value) => {
@@ -128,17 +133,8 @@ function RealtimeDashboard() {
               <span className="font-semibold">{statusText}</span>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <Zap className="w-5 h-5 text-gray-500" />
-            <span className="font-medium text-gray-700">Worker Status:</span>
-            {isWorkerConnected ? (
-              <span className="font-semibold text-success-600">Đang gửi dữ liệu</span>
-            ) : (
-              <span className="font-semibold text-warning-600">Đang chờ dữ liệu...</span>
-            )}
-          </div>
         </div>
-      </div>
+    </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Input Form (5 thông số bối cảnh) */}
@@ -235,41 +231,81 @@ function RealtimeDashboard() {
                 ))}
               </select>
             </div>
+
+            <div className="pt-6 border-t border-gray-200">
+              <button
+                onClick={handleStartPrediction}
+                disabled={!isConnected || isPredicting}
+                className={`btn-primary w-full flex items-center justify-center space-x-2
+                  ${isPredicting ? 'cursor-not-allowed' : ''}
+                `}
+              >
+                {isPredicting ? (
+                  <LoadingSpinner size="sm" text="Đang thu thập & dự đoán..." />
+                ) : (
+                  <>
+                    {result ? <RefreshCw className="w-5 h-5" /> : <Send className="w-5 h-5" />}
+                    <span>{result ? 'Dự đoán lại' : 'Bắt đầu dự đoán'}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Result Section */}
+        {/* Result Section (Cập nhật logic hiển thị) */}
         <div id="result-section" className="lg:sticky lg:top-8 lg:self-start">
           {error && (
             <div className="card bg-danger-50 border-danger-200 mb-4">
               <p className="text-sm text-danger-700">{error}</p>
             </div>
-          )}
+          )}      
           
-          {!result && (
+          {/* 1. Trạng thái Loading */}
+          {isPredicting && (
             <div className="card bg-gray-50 text-center">
               <div className="py-8">
-                {!isConnected ? (
-                  <LoadingSpinner text="Đang kết nối tới server..." />
-                ) : !isWorkerConnected ? (
-                  <LoadingSpinner text="Đang chờ dữ liệu từ Worker (worker.py)..." />
-                ) : (
-                  <LoadingSpinner text="Đang xử lý..." />
-                )}
+                <LoadingSpinner text="Đang chạy speedtest và dự đoán..." />
                 <p className="text-xs text-gray-500 mt-4">
-                  Hãy đảm bảo bạn đã chạy cả Server (main.py) và Worker (worker.py).
+                  Quá trình này có thể mất 10-20 giây.
                 </p>
               </div>
             </div>
           )}
           
-          {result && (
+          {/* 2. Trạng thái có Kết quả */}
+          {!isPredicting && result && (
             <PredictionResult 
               result={result} 
-              // Truyền vào các thông số đã ước tính
               estimatedParams={result.metadata?.estimated_features_dict}
             />
           )}
+          
+          {/* 3. Trạng thái chờ Ban đầu */}
+          {!isPredicting && !result && (
+             <div className="card bg-gray-50 text-center">
+              <div className="py-8">
+                <Activity className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 mb-2">
+                  Chế độ dự đoán thời gian thực
+                </p>
+                <p className="text-sm text-gray-500 mb-4">
+                  Nhập bối cảnh và nhấn "Bắt đầu dự đoán".
+                </p>
+                {!isConnected && (
+                  <p className="text-sm text-warning-600">
+                    Đang chờ kết nối tới server...
+                  </p>
+                )}
+                {isConnected && (
+                  <p className="text-sm text-success-600">
+                    Đã kết nối. Sẵn sàng nhận lệnh.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          
         </div>
       </div>
     </div>
