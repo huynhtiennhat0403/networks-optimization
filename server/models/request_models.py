@@ -3,7 +3,7 @@ Pydantic Request Models
 Định nghĩa schemas cho tất cả requests đến API
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator as validator
 from typing import Dict, Optional
 
 
@@ -65,29 +65,45 @@ class SimplePredictRequest(BaseModel):
     Mode 3: Simplified Input
     Client chỉ cung cấp 3-5 thông số cơ bản, server tự estimate phần còn lại
     """
-    # Required fields (3 core metrics)
-    throughput: float = Field(
+    # Required fields (5 core metrics)
+    user_speed: float = Field(
         ..., 
-        ge=1, 
-        le=100, 
-        description="Network throughput in Mbps",
-        example=45.5
+        ge=0, 
+        le=120, 
+        description="User speed in km/h", # Client gửi km/h
+        example=30.0
     )
-    
-    latency: float = Field(
+
+    battery_level: int = Field(
         ..., 
-        ge=1, 
+        ge=0, 
         le=100, 
-        description="Network latency in milliseconds",
-        example=25.0
+        description="Device battery level in %",
+        example=80
     )
-    
+
     signal_strength: float = Field(
         ..., 
-        ge=-100, 
-        le=-40, 
-        description="WiFi signal strength in dBm",
-        example=-65.0
+        ge=-120, 
+        le=-50, 
+        description="Estimated WiFi signal strength in dBm (từ vạch sóng)",
+        example=-85.0
+    )
+
+    measured_latency: float = Field(
+        ...,
+        ge=1,
+        le=1000,
+        description="Measured latency in ms (do client tự đo)",
+        example=45.5
+    )
+
+    measured_throughput: float = Field(
+        ...,
+        ge=1,
+        le=1000,
+        description="Measured throughput in Mbps (do client tự đo)",
+        example=50.2
     )
     
     # Optional context fields
