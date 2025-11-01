@@ -244,7 +244,7 @@ class SmartEstimator:
         location_direction_offset = {
             'home': 0,
             'office': 45,
-            'public': 90,
+            'event': 90,
             'outdoor': 135,
             'vehicle': 180
         }
@@ -255,7 +255,7 @@ class SmartEstimator:
         location_handover_map = {
             'home': 0,
             'office': 1,
-            'public': 2,
+            'event': 2,
             'outdoor': 3,
             'vehicle': 4 
         }   
@@ -387,8 +387,9 @@ class SmartEstimator:
         location_congestion = {
             'home': 0,
             'office': 1,
-            'public': 2,
+            'event': 2, 
             'outdoor': 1,
+            'vehicle': 1 
         }
         congestion_score += location_congestion.get(location, 0)
         

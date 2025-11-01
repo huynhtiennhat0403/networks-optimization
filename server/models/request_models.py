@@ -81,7 +81,7 @@ class SimplePredictRequest(BaseModel):
     
     location: Optional[str] = Field(
         default="home",
-        description="User location: home, office, public, outdoor",
+        description="User location: home, office, event, outdoor",
         example="home"
     )
     
@@ -110,7 +110,7 @@ class SimplePredictRequest(BaseModel):
     @validator('location')
     def validate_location(cls, v):
         """Validate location"""
-        valid = ['home', 'office', 'public', 'outdoor', 'vehicle']
+        valid = ['home', 'office', 'event', 'outdoor', 'vehicle']
         if v.lower() not in valid:
             raise ValueError(f"location must be one of {valid}")
         return v.lower()
