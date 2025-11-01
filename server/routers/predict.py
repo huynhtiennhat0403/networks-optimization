@@ -100,8 +100,7 @@ async def predict_scenario(
             mode="scenario",
             metadata={
                 "scenario_id": scenario['id'],
-                "scenario_name": scenario['name'],
-                "scenario_category": scenario['category']
+                "scenario_name": scenario['name']
             }
         )
         
