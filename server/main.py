@@ -202,61 +202,64 @@ sio = socketio.AsyncServer(
 # 2. Tạo ứng dụng ASGI cho Socket.IO
 socket_app = socketio.ASGIApp(
     sio,
+    other_asgi_app=app,
     socketio_path="/ws/socket.io"
 )
 
-# 3. Mount ứng dụng Socket.IO vào FastAPI
-# Bất kỳ request nào tới /ws đều sẽ do socket_app xử lý
-app.mount("/ws", socket_app)
-
 # 4. --- Bộ lưu trữ trạng thái ---
-# Dùng để lưu trữ dữ liệu tạm thời từ Worker và React
-# Key là `sid` (session ID) của client, value là dict chứa metrics và context
-client_state = {}
+global_state = {
+    "metrics": None,
+    "context": None,
+    "react_sid": None  # ID của client React để gửi kết quả về
+}
 
-async def trigger_prediction(sid: str):
+async def trigger_prediction():
     """
     Hàm lõi: Khi có đủ 2 phần dữ liệu (metrics + context),
     gọi SmartEstimator và Model, sau đó gửi trả kết quả.
     """
-    global model_wrapper, smart_estimator
+    global model_wrapper, smart_estimator, global_state
     
-    state = client_state.get(sid)
-    
-    # Kiểm tra xem đã đủ 2 phần dữ liệu chưa
-    if not state or "metrics" not in state or "context" not in state:
-        logger.debug(f"[{sid}] Chưa đủ dữ liệu, đang chờ...")
+    # Kiểm tra xem đã đủ 2 phần dữ liệu VÀ sid của React chưa
+    if not global_state["metrics"] or \
+       not global_state["context"] or \
+       not global_state["react_sid"]:
+        
+        logger.debug(f"Chưa đủ dữ liệu: "
+                     f"Metrics={'OK' if global_state['metrics'] else '...'} | "
+                     f"Context={'OK' if global_state['context'] else '...'} | "
+                     f"React SID={'OK' if global_state['react_sid'] else '...'}")
         return
 
     try:
-        logger.info(f"[{sid}] Đã đủ 2 phần dữ liệu, bắt đầu dự đoán...")
+        react_sid = global_state["react_sid"]
+        logger.info(f"[{react_sid}] Đã đủ 2 phần dữ liệu, bắt đầu dự đoán...")
         
         # 1. Gom 9 thông số
-        # 4 từ worker, 5 từ react
         simple_input = {
-            **state["metrics"], # Gồm: latency, throughput, battery_level, signal_strength
-            **state["context"]  # Gồm: user_speed, user_activity, device_type, location, connection_type
+            **global_state["metrics"], # Gồm: latency, throughput, battery_level, signal_strength
+            **global_state["context"]  # Gồm: user_speed, user_activity, device_type, location, connection_type
         }
         
-        # 2. Ước tính (Giống hệt predict_simple)
+        # 2. Ước tính
         full_params = smart_estimator.estimate(simple_input)
-        logger.info(f"[{sid}] Đã ước tính {len(full_params)} thông số.")
+        logger.info(f"[{react_sid}] Đã ước tính {len(full_params)} thông số.")
         
-        # 3. Dự đoán (Giống hệt predict_simple)
+        # 3. Dự đoán
         result = model_wrapper.predict(full_params)
-        logger.info(f"[{sid}] Kết quả: {result['prediction_label']}")
+        logger.info(f"[{react_sid}] Kết quả: {result['prediction_label']}")
 
-        # 4. Chuẩn bị response (Giống hệt predict_simple)
+        # 4. Chuẩn bị response
         response = PredictionResponse(
             prediction=result['prediction'],
             prediction_label=result['prediction_label'],
             confidence=result['confidence'],
             probabilities=result['probabilities'],
             message="Prediction based on real-time auto-collected metrics",
-            mode="realtime", # Mode mới
+            mode="realtime", 
             metadata={
-                "estimated_features_dict": full_params, # Gửi toàn bộ params đã ước tính
-                "contexts_used": state["context"]
+                "estimated_features_dict": full_params, 
+                "contexts_used": global_state["context"]
             }
         )
         
@@ -264,14 +267,17 @@ async def trigger_prediction(sid: str):
         await sio.emit(
             "prediction_update",  # Tên sự kiện
             response.model_dump(),  # Chuyển Pydantic model về dict
-            to=sid                   # Chỉ gửi cho client này
+            to=react_sid            # Chỉ gửi cho client React
         )
-        logger.info(f"[{sid}] Đã gửi 'prediction_update' cho client.")
+        logger.info(f"[{react_sid}] Đã gửi 'prediction_update' cho client.")
+        
+        # Xóa metrics để chờ lần đo mới
+        global_state["metrics"] = None 
 
     except Exception as e:
-        logger.error(f"[{sid}] Lỗi khi dự đoán real-time: {e}")
+        logger.error(f"[{global_state['react_sid']}] Lỗi khi dự đoán real-time: {e}")
         # Gửi lỗi về cho React
-        await sio.emit("prediction_error", {"error": str(e)}, to=sid)
+        await sio.emit("prediction_error", {"error": str(e)}, to=global_state["react_sid"])
 
 # 5. --- Các trình xử lý sự kiện (Event Handlers) ---
 
@@ -279,38 +285,50 @@ async def trigger_prediction(sid: str):
 async def connect(sid, environ, auth):
     """Client (Worker hoặc React) kết nối"""
     logger.info(f"📡 Client đã kết nối: {sid}")
-    # Khởi tạo bộ lưu trữ trạng thái rỗng cho client này
-    client_state[sid] = {}
 
 @sio.event
 async def disconnect(sid):
     """Client ngắt kết nối"""
-    logger.warning(f"🔌 Client đã ngắt kết nối: {sid}")
-    # Xóa trạng thái của client này
-    if sid in client_state:
-        del client_state[sid]
+    logger.warning(f"🔌 Client đã ngắt kếtnoi: {sid}")
+    # Nếu client React bị ngắt kết nối, xóa sid của nó
+    if sid == global_state.get("react_sid"):
+        global_state["react_sid"] = None
+        logger.warning(f"Client React (Dashboard) đã ngắt kết nối.")
 
+
+# --- Lắng nghe lệnh BẮT ĐẦU từ React ---
+@sio.event
+async def start_prediction(sid, data):
+    """
+    Nhận yêu cầu "Bắt đầu dự đoán" từ React Dashboard (5 thông số bối cảnh)
+    """
+    logger.info(f"[{sid}] Nhận 'start_prediction': {data}")
+    
+    # 1. Lưu context VÀ sid của React
+    global_state["context"] = data
+    global_state["react_sid"] = sid
+    
+    # 2. Xóa metrics cũ (nếu có) để chuẩn bị cho lần đo mới
+    global_state["metrics"] = None
+    
+    # 3. Ra lệnh cho TẤT CẢ client (Worker sẽ lắng nghe)
+    await sio.emit("start_measurement")
+    logger.info(f"[{sid}] Đã phát lệnh 'start_measurement' cho worker.")
+
+# --- Lắng nghe kết quả từ Worker ---
 @sio.event
 async def worker_metrics(sid, data):
     """
     Nhận dữ liệu từ 'worker.py' (4 thông số)
     """
     logger.info(f"[{sid}] Nhận 'worker_metrics': {data}")
-    if sid in client_state:
-        client_state[sid]["metrics"] = data
-        # Gọi hàm lõi để kiểm tra và dự đoán
-        await trigger_prediction(sid)
-
-@sio.event
-async def context_update(sid, data):
-    """
-    Nhận dữ liệu từ 'React Dashboard' (5 thông số bối cảnh)
-    """
-    logger.info(f"[{sid}] Nhận 'context_update': {data}")
-    if sid in client_state:
-        client_state[sid]["context"] = data
-        # Gọi hàm lõi để kiểm tra và dự đoán
-        await trigger_prediction(sid)
+    
+    # 1. Lưu metrics
+    global_state["metrics"] = data
+    
+    # 2. Gọi hàm lõi để kiểm tra và dự đoán
+    #    (Hàm trigger_prediction giữ nguyên code)
+    await trigger_prediction()
 
 # ==================== RUN SERVER ====================
 if __name__ == "__main__":

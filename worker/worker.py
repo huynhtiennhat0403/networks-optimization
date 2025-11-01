@@ -110,6 +110,33 @@ def get_signal_strength():
 
 
 # --- 4. Khởi chạy Client Socket ---
+
+def run_measurement_task(sio_client):
+    """
+    Chạy đo đạc MỘT LẦN và gửi kết quả.
+    """
+    logger.info("--- Bắt đầu đo đạc ---")
+    # 1. Đo các thông số
+    latency, throughput = get_speed_metrics()
+    battery = get_battery_level()
+    signal = get_signal_strength()
+    
+    # 2. Tạo payload
+    if latency is not None and throughput is not None:
+        payload = {
+            "latency": latency,
+            "throughput": throughput,
+            "battery_level": battery,
+            "signal_strength": signal
+        }
+        
+        # 3. Gửi dữ liệu lên server
+        logger.info(f"Gửi 'worker_metrics': {payload}")
+        sio_client.emit("worker_metrics", payload)
+    else:
+        logger.error("Đo speedtest thất bại, không gửi metrics.")
+    logger.info("--- Đo đạc hoàn tất ---")
+
 def start_worker():
     sio = socketio.Client(logger=True, engineio_logger=True)
 
@@ -124,35 +151,28 @@ def start_worker():
     @sio.event
     def disconnect():
         logger.warning("🔌 Đã ngắt kết nối khỏi Server.")
+        
+    # --- MỚI: Lắng nghe lệnh từ Server ---
+    @sio.on('start_measurement')
+    def on_start_measurement():
+        """
+        Server yêu cầu worker bắt đầu đo.
+        """
+        logger.info("⚡ Nhận lệnh 'start_measurement' từ server. Bắt đầu đo...")
+        try:
+            # Chạy tác vụ đo đạc
+            run_measurement_task(sio)
+        except Exception as e:
+            logger.error(f"Lỗi khi chạy tác vụ đo đạc: {e}")
 
     try:
         logger.info(f"Đang kết nối tới server {SERVER_URL}...")
         sio.connect(SERVER_URL, socketio_path=SOCKETIO_PATH)
         
-        # Vòng lặp chính của Worker
-        while True:
-            # 1. Đo các thông số
-            latency, throughput = get_speed_metrics()
-            battery = get_battery_level()
-            signal = get_signal_strength()
-            
-            # 2. Tạo payload
-            # Đây là 4/5 thông số bắt buộc của "Simplified Input"
-            if latency is not None and throughput is not None:
-                payload = {
-                    "latency": latency,
-                    "throughput": throughput,
-                    "battery_level": battery,
-                    "signal_strength": signal
-                }
-                
-                # 3. Gửi dữ liệu lên server
-                logger.info(f"Gửi 'worker_metrics': {payload}")
-                sio.emit("worker_metrics", payload)
-            
-            # 4. Chờ 15 giây cho lần đo tiếp theo
-            logger.info("Chờ 15 giây cho lần đo tiếp theo...")
-            time.sleep(15)
+        # --- MỚI: Không còn vòng lặp while True ---
+        logger.info("Worker đang chạy và chờ lệnh 'start_measurement'...")
+        # Giữ script sống để lắng nghe sự kiện
+        sio.wait() 
             
     except socketio.exceptions.ConnectionError as e:
         logger.critical(f"Không thể kết nối tới server. Server có đang chạy không? {e}")
