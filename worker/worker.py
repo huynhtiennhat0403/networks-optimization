@@ -116,25 +116,38 @@ def run_measurement_task(sio_client):
     Chạy đo đạc MỘT LẦN và gửi kết quả.
     """
     logger.info("--- Bắt đầu đo đạc ---")
-    # 1. Đo các thông số
-    latency, throughput = get_speed_metrics()
-    battery = get_battery_level()
-    signal = get_signal_strength()
     
-    # 2. Tạo payload
-    if latency is not None and throughput is not None:
-        payload = {
-            "latency": latency,
-            "throughput": throughput,
-            "battery_level": battery,
-            "signal_strength": signal
-        }
+    try:
+        # 1. Đo các thông số
+        latency, throughput = get_speed_metrics()
+        battery = get_battery_level()
+        signal = get_signal_strength()
         
-        # 3. Gửi dữ liệu lên server
-        logger.info(f"Gửi 'worker_metrics': {payload}")
-        sio_client.emit("worker_metrics", payload)
-    else:
-        logger.error("Đo speedtest thất bại, không gửi metrics.")
+        # 2. Tạo payload HOẶC GỬI LỖI
+        if latency is not None and throughput is not None:
+            payload = {
+                "latency": latency,
+                "throughput": throughput,
+                "battery_level": battery,
+                "signal_strength": signal
+            }
+            
+            # 3. Gửi dữ liệu lên server
+            logger.info(f"Gửi 'worker_metrics': {payload}")
+            sio_client.emit("worker_metrics", payload)
+        else:
+            logger.error("Đo speedtest thất bại, gửi 'worker_error' lên server.")
+            sio_client.emit("worker_error", {
+                "error": "Speedtest failed (403 Forbidden or other issue)"
+            })
+            
+    except Exception as e:
+        logger.error(f"Lỗi nghiêm trọng trong run_measurement_task: {e}")
+        try:
+            sio_client.emit("worker_error", {"error": str(e)})
+        except:
+            pass # Bỏ qua nếu không gửi được
+
     logger.info("--- Đo đạc hoàn tất ---")
 
 def start_worker():
@@ -169,7 +182,7 @@ def start_worker():
         logger.info(f"Đang kết nối tới server {SERVER_URL}...")
         sio.connect(SERVER_URL, socketio_path=SOCKETIO_PATH)
         
-        # --- MỚI: Không còn vòng lặp while True ---
+        # --- Không còn vòng lặp while True ---
         logger.info("Worker đang chạy và chờ lệnh 'start_measurement'...")
         # Giữ script sống để lắng nghe sự kiện
         sio.wait() 
