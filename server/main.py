@@ -327,8 +327,28 @@ async def worker_metrics(sid, data):
     global_state["metrics"] = data
     
     # 2. Gọi hàm lõi để kiểm tra và dự đoán
-    #    (Hàm trigger_prediction giữ nguyên code)
     await trigger_prediction()
+
+@sio.event
+async def worker_error(sid, data):
+    """
+    Nhận thông báo LỖI từ 'worker.py'
+    """
+    error_message = data.get('error', 'Unknown worker error')
+    logger.error(f"[{sid}] Nhận 'worker_error': {error_message}")
+    
+    react_sid = global_state.get("react_sid")
+    if react_sid:
+        # Gửi lỗi này về cho React Dashboard
+        await sio.emit(
+            "prediction_error", 
+            {"error": f"Worker Error: {error_message}"}, 
+            to=react_sid
+        )
+        logger.info(f"[{react_sid}] Đã gửi 'prediction_error' cho client React.")
+    
+    # Xóa metrics để chờ lần đo mới (nếu có)
+    global_state["metrics"] = None
 
 # ==================== RUN SERVER ====================
 if __name__ == "__main__":
