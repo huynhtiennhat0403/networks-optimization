@@ -190,19 +190,28 @@ class SmartEstimator:
         - PDR: 50.0 - 100.0%
         - Modulation: BPSK, QPSK, 16-QAM, 64-QAM
         """
-        # SNR estimation from signal strength
-        # Map signal range [-100, -40] to SNR range [5, 30]
-        snr = 5 + ((-signal + 100) / 60) * 25
-        snr = max(5.0, min(30.0, snr))
+        # --- 1. Chuẩn hóa Signal ---
+        # Đảm bảo signal nằm trong phạm vi dataset để tính toán
+        signal_clamped = max(-99.99, min(-40.00, signal))
         
-        # BER (Bit Error Rate) - inverse relationship with SNR
-        # Higher SNR = lower BER
-        ber = 0.05 * (1 - (snr - 5) / 25)
+        # --- 2. Ước tính SNR ---
+        # Ánh xạ tuyến tính: [-99.99, -40.00] -> [5.0, 30.0]
+        # (signal - in_min) / (in_max - in_min)
+        percent = (signal_clamped - (-99.99)) / (-40.00 - (-99.99)) 
+        # out_min + percent * (out_max - out_min)
+        snr = 5.0 + percent * (30.0 - 5.0)
+        snr = max(5.0, min(30.0, snr)) # Đảm bảo luôn trong phạm vi
+        
+        # --- 3. Ước tính BER (Nghịch đảo SNR) ---
+        # Ánh xạ tuyến tính: [5.0, 30.0] -> [0.05, 0.0001] (SNR cao -> BER thấp)
+        snr_percent = (snr - 5.0) / (30.0 - 5.0)
+        ber = 0.05 + snr_percent * (0.0001 - 0.05)
         ber = max(0.0001, min(0.05, ber))
         
-        # PDR (Packet Delivery Ratio) - inverse relationship with BER
-        # Lower BER = higher PDR
-        pdr = 50 + (1 - ber / 0.05) * 50
+        # --- 4. Ước tính PDR (Nghịch đảo BER) ---
+        # Ánh xạ tuyến tính: [0.05, 0.0001] -> [50.0, 100.0] (BER cao -> PDR thấp)
+        ber_percent = (ber - 0.05) / (0.0001 - 0.05)
+        pdr = 50.0 + ber_percent * (100.0 - 50.0)
         pdr = max(50.0, min(100.0, pdr))
         
         # Modulation scheme selection based on SNR
@@ -344,17 +353,14 @@ class SmartEstimator:
         
         Based on dataset range: 10.25 - 999.93 m
         """
-        # Path loss model: signal gets weaker with distance
-        # Map signal range [-100, -40] to distance range [10, 1000]
         
-        if connection_type in ['4g', '5g']:
-            # Cellular has better range
-            # -40 dBm = very close (~10m)
-            # -100 dBm = far (~1000m)
-            distance = 10 + ((-signal + 40) / 60) * 990
-        else:
-            # Other connections (if any future additions)
-            distance = 10 + ((-signal + 40) / 60) * 990
+        # --- 1. Chuẩn hóa Signal ---
+        signal_clamped = max(-99.99, min(-40.00, signal))
+        
+        # --- 2. Ánh xạ tuyến tính ---
+        # Ánh xạ: [-99.99, -40.00] -> [999.93, 10.25] (Nghịch đảo)
+        percent = (signal_clamped - (-99.99)) / (-40.00 - (-99.99))
+        distance = 999.93 + percent * (10.25 - 999.93)
         
         # Clamp to dataset range
         distance = max(10.25, min(999.93, distance))
@@ -371,19 +377,19 @@ class SmartEstimator:
         """
         congestion_score = 0
         
-        # High latency indicates congestion
-        if latency > 70:
+        # --- 1. Đánh giá Latency (so với mean 50.77) ---
+        if latency > 75: # Cao hơn đáng kể so với mean
             congestion_score += 2
-        elif latency > 40:
+        elif latency > 51: # Cao hơn mean
             congestion_score += 1
         
-        # Low throughput indicates congestion
-        if throughput < 30:
+        # --- 2. Đánh giá Throughput (so với mean 50.07) ---
+        if throughput < 25: # Thấp hơn đáng kể so với mean
             congestion_score += 2
-        elif throughput < 60:
+        elif throughput < 50: # Thấp hơn mean
             congestion_score += 1
         
-        # Public locations tend to have more congestion
+        # --- 3. Đánh giá Vị trí (Location) ---
         location_congestion = {
             'home': 0,
             'office': 1,
@@ -393,7 +399,7 @@ class SmartEstimator:
         }
         congestion_score += location_congestion.get(location, 0)
         
-        # Map score to congestion label
+        # Map score to congestion label (0=Low, 1=Medium, 2=High)
         if congestion_score <= 2:
             return 0
         elif congestion_score <= 4:
