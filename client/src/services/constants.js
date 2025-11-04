@@ -60,18 +60,18 @@ export const CONNECTION_TYPES = [
 
 // Bảng quy đổi Vạch sóng
 export const SIGNAL_BARS_MAP = [
-  { label: '★☆☆☆ (1 vạch - Rất yếu)', value: -105.0 },
-  { label: '★★☆☆ (2 vạch - Yếu)', value: -95.0 },
-  { label: '★★★☆ (3 vạch - Trung bình)', value: -85.0 },
-  { label: '★★★★ (4 vạch - Mạnh)', value: -75.0 },
+  { label: '★☆☆☆ (1 vạch - Rất yếu)', value: -95.0 }, 
+  { label: '★★☆☆ (2 vạch - Yếu)', value: -80.0 },     
+  { label: '★★★☆ (3 vạch - Trung bình)', value: -65.0 }, 
+  { label: '★★★★ (4 vạch - Mạnh)', value: -50.0 }       
 ];
 
 // Input validation ranges
 export const INPUT_RANGES = {
-  throughput: { min: 1, max: 1000, unit: 'Mbps', step: 0.1 },
-  latency: { min: 1, max: 1000, unit: 'ms', step: 0.1 },
-  user_speed: { min: 0, max: 120, unit: 'km/h', step: 1 },
-  battery_level: { min: 0, max: 100, unit: '%', step: 1 },
+  throughput: { min: 1, max: 100, unit: 'Mbps', step: 0.1 }, 
+  latency: { min: 1, max: 100, unit: 'ms', step: 0.1 },     
+  user_speed: { min: 0, max: 108, unit: 'km/h', step: 1 },  
+  battery_level: { min: 5, max: 100, unit: '%', step: 1 },  
 };
 
 // Default values for Mode 1 (Simple)
