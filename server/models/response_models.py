@@ -56,6 +56,12 @@ class PredictionResponse(BaseModel):
         description="Additional metadata (scenario info, estimated features, etc.)"
     )
 
+    insight: Optional[str] = Field(
+        default=None,
+        description="Phân tích (insight) hoặc lời khuyên (recommendation) từ AI",
+        example="Kết quả: Poor. **Nguyên nhân chính:** Tín hiệu mạng (SNR) của bạn yếu."
+    )
+
 
 class HealthResponse(BaseModel):
     """Health check response"""

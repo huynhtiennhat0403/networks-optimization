@@ -83,7 +83,7 @@ recommendation_service = None
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
-    global model_wrapper, scenario_manager, smart_estimator
+    global model_wrapper, scenario_manager, smart_estimator, recommendation_service
     
     start_time = time.time()
     

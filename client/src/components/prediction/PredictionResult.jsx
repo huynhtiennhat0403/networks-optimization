@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertTriangle, XCircle, TrendingUp, Activity } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, TrendingUp, Activity, Info } from 'lucide-react';
 import { QUALITY_COLORS, PARAMETER_DISPLAY, PARAMETER_CATEGORIES, formatParameterValue } from '../../services/constants';
 
 function PredictionResult({ result, estimatedParams = null }) {
@@ -75,6 +75,25 @@ function PredictionResult({ result, estimatedParams = null }) {
         )}
       </div>
 
+      {/* Insight (Phân tích của AI) */}
+      {result.insight && (
+        <div className="card bg-blue-50 border border-blue-200 animate-fade-in">
+          <div className="flex items-start space-x-3">
+            <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <h4 className="text-lg font-bold text-gray-900 mb-2">
+                Phân tích của AI
+              </h4>
+              {/* Dùng dangerouslySetInnerHTML để render <strong> (in đậm) */}
+              <p 
+                className="text-sm text-blue-800 space-y-1"
+                dangerouslySetInnerHTML={{ __html: result.insight }} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Estimated Parameters (if Mode 1) */}
       {estimatedParams && (
         <div className="card">
@@ -121,52 +140,6 @@ function PredictionResult({ result, estimatedParams = null }) {
           </div>
         </div>
       )}
-
-      {/* Recommendations based on quality */}
-      <div className="card bg-gray-50 border border-gray-200">
-        <div className="flex items-center space-x-2 mb-3">
-          <TrendingUp className="w-5 h-5 text-primary-600" />
-          <h4 className="text-lg font-bold text-gray-900">Recommendations</h4>
-        </div>
-        <ul className="space-y-2 text-sm text-gray-700">
-          {prediction_label === 'Good' && (
-            <>
-              <li className="flex items-start space-x-2">
-                <span className="text-success-500 mt-0.5">✓</span>
-                <span>Your network is performing well. Ideal for video calls, streaming, and gaming.</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <span className="text-success-500 mt-0.5">✓</span>
-                <span>Continue monitoring during peak hours to maintain quality.</span>
-              </li>
-            </>
-          )}
-          {prediction_label === 'Moderate' && (
-            <>
-              <li className="flex items-start space-x-2">
-                <span className="text-warning-500 mt-0.5">⚠</span>
-                <span>Network quality is acceptable but may experience occasional slowdowns.</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <span className="text-warning-500 mt-0.5">⚠</span>
-                <span>Consider moving closer to WiFi router or switching to a less congested channel.</span>
-              </li>
-            </>
-          )}
-          {prediction_label === 'Poor' && (
-            <>
-              <li className="flex items-start space-x-2">
-                <span className="text-danger-500 mt-0.5">✗</span>
-                <span>Network quality is poor. Video calls and streaming may be affected.</span>
-              </li>
-              <li className="flex items-start space-x-2">
-                <span className="text-danger-500 mt-0.5">✗</span>
-                <span>Try restarting your router, moving to a better location, or contacting your ISP.</span>
-              </li>
-            </>
-          )}
-        </ul>
-      </div>
     </div>
   );
 }
