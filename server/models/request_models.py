@@ -25,18 +25,19 @@ class SimplePredictRequest(BaseModel):
     Client cung cấp 5 thông số user input + optional contexts
     Server tự estimate phần còn lại
     """
+
     # Required fields (5 user inputs)
     user_speed: float = Field(
         ..., 
         ge=0, 
-        le=120, 
+        le=108,
         description="User speed in km/h (user manually inputs)",
         example=30.0
     )
 
     battery_level: int = Field(
         ..., 
-        ge=0, 
+        ge=5, 
         le=100, 
         description="Device battery level in %",
         example=80
@@ -44,8 +45,8 @@ class SimplePredictRequest(BaseModel):
 
     signal_strength: float = Field(
         ..., 
-        ge=-120, 
-        le=-50, 
+        ge=-100, 
+        le=-40, 
         description="Signal strength in dBm (estimated from signal bars: 1-4)",
         example=-75.0
     )
@@ -53,7 +54,7 @@ class SimplePredictRequest(BaseModel):
     latency: float = Field(
         ...,
         ge=1,
-        le=1000,
+        le=100, 
         description="Latency in ms (user inputs from speedtest apps)",
         example=45.5
     )
@@ -61,7 +62,7 @@ class SimplePredictRequest(BaseModel):
     throughput: float = Field(
         ...,
         ge=1,
-        le=1000,
+        le=100, 
         description="Throughput in Mbps (user inputs from speedtest apps)",
         example=50.2
     )

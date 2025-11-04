@@ -93,7 +93,7 @@ class SmartEstimator:
         
         # 1. Signal Quality → SNR, BER, PDR, Modulation
         snr, ber, pdr, modulation = self._estimate_signal_quality(
-            signal_strength, throughput, latency
+            signal_strength, throughput, latency, user_activity
         )
         
         # 2. User mobility → Direction, Handovers
@@ -354,13 +354,22 @@ class SmartEstimator:
         Based on dataset range: 10.25 - 999.93 m
         """
         
-        # --- 1. Chuẩn hóa Signal ---
+        # Ánh xạ nghịch đảo: [-99.99, -40.00] -> [MAX_DISTANCE, 10.25]
         signal_clamped = max(-99.99, min(-40.00, signal))
-        
-        # --- 2. Ánh xạ tuyến tính ---
-        # Ánh xạ: [-99.99, -40.00] -> [999.93, 10.25] (Nghịch đảo)
         percent = (signal_clamped - (-99.99)) / (-40.00 - (-99.99))
-        distance = 999.93 + percent * (10.25 - 999.93)
+        
+        max_distance = 999.93 # Mặc định (cho 4G)
+        
+        if connection_type == '5g':
+            # Giả định 5G có phạm vi ngắn hơn
+            logger.debug("[Estimator] Áp dụng phạm vi 5G (max 700m) cho distance")
+            max_distance = 700.0 
+        else:
+            # 4G hoặc không rõ, dùng phạm vi chuẩn của dataset
+            logger.debug("[Estimator] Áp dụng phạm vi 4G (max 999m) cho distance")
+            max_distance = 999.93
+            
+        distance = max_distance + percent * (10.25 - max_distance)
         
         # Clamp to dataset range
         distance = max(10.25, min(999.93, distance))
@@ -368,7 +377,7 @@ class SmartEstimator:
         return round(distance, 2)
     
     
-    def _estimate_network_congestion(self, latency: float, throughput: float, location: str) -> str:
+    def _estimate_network_congestion(self, latency: float, throughput: float, location: str, user_activity:str) -> str:
         """
         Estimate network congestion level
         
@@ -377,13 +386,29 @@ class SmartEstimator:
         """
         congestion_score = 0
         
-        # --- 1. Đánh giá Latency (so với mean 50.77) ---
-        if latency > 75: # Cao hơn đáng kể so với mean
+        # --- 1. Đặt ngưỡng Latency dựa trên hoạt động ---
+        # Ngưỡng mặc định (cho streaming, downloading, v.v.)
+        latency_threshold_low = 51  # (Gần mức mean 50.77)
+        latency_threshold_high = 75
+        
+        if user_activity == 'gaming':
+            # "Gaming" rất nhạy cảm -> "khó tính" hơn
+            logger.debug("[Estimator] Áp dụng ngưỡng 'gaming' (khó) cho latency")
+            latency_threshold_low = 35  
+            latency_threshold_high = 55 
+        elif user_activity == 'browsing':
+            # "Browsing" không quá nhạy cảm -> "thoải mái" hơn
+            logger.debug("[Estimator] Áp dụng ngưỡng 'browsing' (dễ) cho latency")
+            latency_threshold_low = 60
+            latency_threshold_high = 85
+            
+        if latency > latency_threshold_high:
             congestion_score += 2
-        elif latency > 51: # Cao hơn mean
+        elif latency > latency_threshold_low:
             congestion_score += 1
         
         # --- 2. Đánh giá Throughput (so với mean 50.07) ---
+        # (Bạn có thể áp dụng logic tương tự cho throughput nếu muốn)
         if throughput < 25: # Thấp hơn đáng kể so với mean
             congestion_score += 2
         elif throughput < 50: # Thấp hơn mean
