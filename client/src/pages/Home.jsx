@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Zap, ListChecks, ArrowRight, CheckCircle2, Network } from 'lucide-react';
+import { Zap, ListChecks, ArrowRight, CheckCircle2, Network, Activity } from 'lucide-react'; // <-- 1. Thêm 'Activity'
 
 function Home() {
   const navigate = useNavigate();
@@ -40,7 +40,8 @@ function Home() {
       </div>
       
       {/* Mode Selection Cards */}
-      <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+      <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+        
         {/* Mode 1: Smart Input */}
         <div className="card hover:shadow-xl transition-all duration-300 animate-slide-up">
           <div className="flex items-start space-x-4 mb-4">
@@ -55,7 +56,6 @@ function Home() {
               </p>
             </div>
           </div>
-          
           <div className="space-y-2 mb-6">
             <div className="flex items-center text-sm text-gray-600">
               <CheckCircle2 className="w-4 h-4 text-success-500 mr-2" />
@@ -65,15 +65,10 @@ function Home() {
               <CheckCircle2 className="w-4 h-4 text-success-500 mr-2" />
               <span>AI-powered parameter estimation</span>
             </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <CheckCircle2 className="w-4 h-4 text-success-500 mr-2" />
-              <span>Context-aware predictions</span>
-            </div>
           </div>
-          
           <button
             onClick={() => navigate('/smart-input')}
-            className="btn-primary w-full flex items-center justify-center space-x-2"
+            className="btn-primary w-full flex items-center justify-center space-x-2 mt-auto"
           >
             <span>Start Smart Input</span>
             <ArrowRight className="w-5 h-5" />
@@ -94,7 +89,6 @@ function Home() {
               </p>
             </div>
           </div>
-          
           <div className="space-y-2 mb-6">
             <div className="flex items-center text-sm text-gray-600">
               <CheckCircle2 className="w-4 h-4 text-success-500 mr-2" />
@@ -102,22 +96,54 @@ function Home() {
             </div>
             <div className="flex items-center text-sm text-gray-600">
               <CheckCircle2 className="w-4 h-4 text-success-500 mr-2" />
-              <span>Vietnamese context (HCMC, highways, etc.)</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <CheckCircle2 className="w-4 h-4 text-success-500 mr-2" />
-              <span>Instant predictions</span>
+              <span>Vietnamese context (HCMC, etc.)</span>
             </div>
           </div>
-          
           <button
             onClick={() => navigate('/scenarios')}
-            className="btn-primary w-full flex items-center justify-center space-x-2"
+            className="btn-primary w-full flex items-center justify-center space-x-2 mt-auto"
           >
             <span>Browse Scenarios</span>
             <ArrowRight className="w-5 h-5" />
           </button>
         </div>
+
+        {/* 3.  Real-time Mode */}
+        <div 
+          className="card hover:shadow-xl transition-all duration-300 animate-slide-up" 
+          style={{ animationDelay: '0.2s' }}
+        >
+          <div className="flex items-start space-x-4 mb-4">
+            <div className="p-3 bg-red-100 rounded-lg">
+              <Activity className="w-8 h-8 text-red-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Real-time Mode</h2>
+              <p className="text-gray-600">
+                Automatically monitor network. A worker measures metrics in 
+                real-time for continuous predictions.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2 mb-6">
+            <div className="flex items-center text-sm text-gray-600">
+              <CheckCircle2 className="w-4 h-4 text-success-500 mr-2" />
+              <span>Automatic metric collection</span>
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <CheckCircle2 className="w-4 h-4 text-success-500 mr-2" />
+              <span>Powered by Python worker</span>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/realtime')}
+            className="btn-primary w-full flex items-center justify-center space-x-2 mt-auto"
+          >
+            <span>Open Dashboard</span>
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
+
       </div>
       
       {/* Info Section */}

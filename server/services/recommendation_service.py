@@ -83,7 +83,7 @@ class RecommendationService:
                 if specific_recommendation:
                     logger.info(f"[Recommend] AI xác định vấn đề: {problem_id}")
                     # Kết hợp thông báo chung + lời khuyên cụ thể
-                    return f"{recommendation} **Nguyên nhân chính:** {specific_recommendation}"
+                    return f"{recommendation} <strong>Nguyên nhân chính:</strong> {specific_recommendation}"
             
             # 5. Nếu không tìm thấy vấn đề cụ thể, trả về thông báo mặc định
             return recommendation
