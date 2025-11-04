@@ -93,7 +93,7 @@ class SmartEstimator:
         
         # 1. Signal Quality → SNR, BER, PDR, Modulation
         snr, ber, pdr, modulation = self._estimate_signal_quality(
-            signal_strength, throughput, latency, user_activity
+            signal_strength, throughput, latency
         )
         
         # 2. User mobility → Direction, Handovers
@@ -116,7 +116,7 @@ class SmartEstimator:
         
         # 6. Network congestion estimation
         network_congestion = self._estimate_network_congestion(
-            latency, throughput, location
+            latency, throughput, location, user_activity
         )
         
         # 7. Advanced network parameters
