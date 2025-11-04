@@ -22,15 +22,19 @@ router = APIRouter(
 _model_wrapper = None
 _scenario_manager = None
 _smart_estimator = None
+_recommendation_service = None
 
-
-def set_dependencies(model_wrapper, scenario_manager, smart_estimator):
-    """Set global dependencies (called from main.py)"""
-    global _model_wrapper, _scenario_manager, _smart_estimator
+def set_dependencies(model_wrapper, scenario_manager, smart_estimator, recommendation_service):
+    global _model_wrapper, _scenario_manager, _smart_estimator, _recommendation_service
     _model_wrapper = model_wrapper
     _scenario_manager = scenario_manager
     _smart_estimator = smart_estimator
+    _recommendation_service = recommendation_service 
 
+def get_recommendation_service():
+    if _recommendation_service is None:
+        raise HTTPException(status_code=503, detail="Recommendation service not initialized")
+    return _recommendation_service
 
 def get_model_wrapper():
     """Dependency to get model wrapper"""
@@ -59,7 +63,8 @@ def get_smart_estimator():
 async def predict_scenario(
     request: ScenarioPredictRequest,
     model=Depends(get_model_wrapper),
-    scenario_mgr=Depends(get_scenario_manager)
+    scenario_mgr=Depends(get_scenario_manager),
+    reco_service=Depends(get_recommendation_service)
 ):
     """
     Mode 2: Scenario Selection
@@ -82,6 +87,11 @@ async def predict_scenario(
         
         # Predict using scenario parameters
         result = model.predict(scenario['parameters'])
+
+        recommendation = reco_service.get_recommendation(
+            scenario['parameters'], 
+            result['prediction_label']
+        )
         
         logger.info(
             f"[SCENARIO] '{scenario['name']}' → {result['prediction_label']} "
@@ -98,7 +108,8 @@ async def predict_scenario(
             metadata={
                 "scenario_id": scenario['id'],
                 "scenario_name": scenario['name']
-            }
+            },
+            insight = recommendation
         )
         
     except HTTPException:
@@ -112,7 +123,8 @@ async def predict_scenario(
 async def predict_simple(
     request: SimplePredictRequest,
     model=Depends(get_model_wrapper),
-    estimator=Depends(get_smart_estimator)
+    estimator=Depends(get_smart_estimator),
+    reco_service=Depends(get_recommendation_service)
 ):
     """
     Mode 1: Simplified Input
@@ -174,6 +186,11 @@ async def predict_simple(
             f"[SIMPLE] Prediction: {result['prediction_label']} "
             f"(confidence: {result['confidence']:.2%})"
         )
+
+        recommendation = reco_service.get_recommendation(
+            full_params, 
+            result['prediction_label']
+        )
         
         # Identify which features were user-provided vs estimated
         user_provided_features = [
@@ -203,7 +220,8 @@ async def predict_simple(
                     "location": request.location,
                     "connection_type": request.connection_type
                 }
-            }
+            },
+            insight = recommendation
         )
         
     except ValueError as e:

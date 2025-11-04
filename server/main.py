@@ -27,6 +27,7 @@ from .routers import scenarios as scenarios_router
 from utils.model_wrapper import ModelWrapper
 from .services.scenario_manager import ScenarioManager
 from .services.smart_estimator import SmartEstimator
+from .services.recommendation_service import RecommendationService
 
 # 3. Import các response models 
 from .models.response_models import HealthResponse, PredictionResponse
@@ -77,6 +78,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 model_wrapper = None
 scenario_manager = None
 smart_estimator = None
+recommendation_service = None
 
 @app.on_event("startup")
 async def startup_event():
@@ -119,11 +121,20 @@ async def startup_event():
         except Exception as e:
             logger.error(f"❌ Failed to initialize estimator: {str(e)}")
             raise
+
+        logger.info("\n🧠 Initializing recommendation service...")
+        try:
+            # Không cần truyền wrapper hay preprocessor nữa
+            recommendation_service = RecommendationService(base_dir=BASE_DIR)
+            logger.info("✅ Recommendation service ready")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize recommendation service: {e}")
+            raise
             
         # --- 4. Inject dependencies vào Routers ---
         # Gửi các services đã khởi tạo vào các file router
         logger.info("\n🔗 Injecting dependencies into routers...")
-        predict_router.set_dependencies(model_wrapper, scenario_manager, smart_estimator)
+        predict_router.set_dependencies(model_wrapper, scenario_manager, smart_estimator, recommendation_service)
         scenarios_router.set_dependencies(scenario_manager)
         logger.info("✅ Dependencies injected")
 
@@ -218,7 +229,7 @@ async def trigger_prediction():
     Hàm lõi: Khi có đủ 2 phần dữ liệu (metrics + context),
     gọi SmartEstimator và Model, sau đó gửi trả kết quả.
     """
-    global model_wrapper, smart_estimator, global_state
+    global model_wrapper, smart_estimator, global_state, recommendation_service
     
     # Kiểm tra xem đã đủ 2 phần dữ liệu VÀ sid của React chưa
     if not global_state["metrics"] or \
@@ -249,6 +260,11 @@ async def trigger_prediction():
         result = model_wrapper.predict(full_params)
         logger.info(f"[{react_sid}] Kết quả: {result['prediction_label']}")
 
+        recommendation = recommendation_service.get_recommendation(
+            full_params,
+            result['prediction_label']
+        )
+
         # 4. Chuẩn bị response
         response = PredictionResponse(
             prediction=result['prediction'],
@@ -260,7 +276,8 @@ async def trigger_prediction():
             metadata={
                 "estimated_features_dict": full_params, 
                 "contexts_used": global_state["context"]
-            }
+            },
+            insight=recommendation
         )
         
         # 5. Gửi kết quả NGƯỢC LẠI cho React Dashboard
