@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-socketio
+joblib
+scikit-learn
+pandas
+numpy
+requests
+psutil
+speedtest-cli
