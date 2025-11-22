@@ -14,7 +14,7 @@ class RecommendationService:
         self.ranges = {} # Để lưu trữ min/max/mean
 
         # 1. Tải file recommendations.json 
-        reco_path = os.path.join(base_dir, "data", "recommendations", "recommendations.json")
+        reco_path = os.path.join(base_dir, "server", "data", "recommendations", "recommendations.json")
         try:
             with open(reco_path, 'r', encoding='utf-8') as f:
                 self.config = json.load(f)
