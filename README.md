@@ -67,3 +67,18 @@ NetworkOptimization_DoAn/
 ├── requirements.txt        # Danh sách thư viện Python
 ├── run_project.bat         # Script chạy tự động (Windows)
 └── README.md               # Tài liệu hướng dẫn
+
+## 🚀 Hướng dẫn Cài đặt và Chạy Demo
+
+Để chạy dự án trên máy tính mới, vui lòng thực hiện theo quy trình sau:
+
+### 📋 1. Yêu cầu hệ thống (Prerequisites)
+Trước khi bắt đầu, hãy đảm bảo máy tính đã cài đặt:
+* **Python (v3.8 trở lên)**: Đã cài đặt và thêm vào biến môi trường (PATH).
+* **Node.js (v14 trở lên)**: Để chạy giao diện Dashboard (Client).
+
+### 📦 2. Cài đặt thư viện (Chỉ cần làm 1 lần đầu)
+Mở **Command Prompt (CMD)** hoặc Terminal tại thư mục gốc của dự án (`NetworkOptimization_DoAn`) và chạy lệnh:
+
+```bash
+pip install -r requirements.txt

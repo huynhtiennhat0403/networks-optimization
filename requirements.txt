@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 python-socketio
+websocket-client
 joblib
 scikit-learn
 pandas
