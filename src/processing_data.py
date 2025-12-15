@@ -1,103 +1,128 @@
 import pandas as pd
 import os
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 import joblib
 
 def process_data(input_path, output_folder="data/processed", model_dir='models'):
     """
-    Xử lý dữ liệu: mã hóa, chuẩn hóa, chia train-test, và lưu encoder/scaler.
+    Xử lý dữ liệu: 
+    - Loại bỏ các cột gây Leakage (Signal Strength, SNR, PDR)
+    - Encoding & Scaling
+    - Chia Train/Test
     """
-
+    
     # --- 1️⃣ Đọc dữ liệu ---
     df = pd.read_csv(input_path)
-    print(f"📊 Original data shape: {df.shape}")
-
-    # --- 2️⃣ Loại bỏ các hàng RF Link Quality = '0' ---
-    df = df[df['RF Link Quality'] != '0'].copy()
-    df.reset_index(drop=True, inplace=True)
-    print(f"📊 After removing '0' class: {df.shape}")
-
-    # --- 3️⃣ Label encoding cho RF Link Quality & Network Congestion ---
-    rf_link_quality_map = {'Poor': 0, 'Moderate': 1, 'Good': 2}
-    congestion_map = {'Low': 0, 'Medium': 1, 'High': 2}
-
-    df['RF Link Quality'] = df['RF Link Quality'].map(rf_link_quality_map).astype(int)
-    df['Network Congestion'] = df['Network Congestion'].map(congestion_map).astype(int)
+    print(f"📊 Tổng số mẫu ban đầu: {len(df)}")
     
-    print("\n📊 RF Link Quality distribution:")
-    print(df['RF Link Quality'].value_counts().sort_index())
-
-    # --- 4️⃣ One-hot encoding cho Modulation Scheme ---
-    onehot_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-    modulation_encoded = onehot_encoder.fit_transform(df[['Modulation Scheme']])
-
-    # Chuyển sang DataFrame để nối lại
-    modulation_encoded_df = pd.DataFrame(
-        modulation_encoded,
-        columns=onehot_encoder.get_feature_names_out(['Modulation Scheme'])
-    )
-
-    # Nối vào DataFrame gốc và bỏ cột cũ
-    df = pd.concat([df.drop(columns=['Modulation Scheme']), modulation_encoded_df], axis=1)
-
-    # Reset index để concat không bị lệch
-    df.reset_index(drop=True, inplace=True)
-    modulation_encoded_df.reset_index(drop=True, inplace=True)
-
-    # --- 5️⃣ Chuẩn hóa Min-Max (KHÔNG bao gồm target) ---
+    # --- 2️⃣ Vệ sinh dữ liệu ---
     target_col = 'RF Link Quality'
+    df[target_col] = df[target_col].astype(str).str.strip()
     
-    # Tách target ra trước khi scale
-    y = df[target_col].copy()
+    # Xóa các giá trị rác
+    invalid_labels = ['0', 'nan', '', 'None']
+    df = df[~df[target_col].isin(invalid_labels)].copy()
+    
+    # Map target
+    rf_link_quality_map = {'Poor': 0, 'Moderate': 1, 'Good': 2}
+    df[target_col] = df[target_col].map(rf_link_quality_map)
+    df.dropna(subset=[target_col], inplace=True)
+    df[target_col] = df[target_col].astype(int)
+    
+    # Map congestion
+    congestion_map = {'Low': 0, 'Medium': 1, 'High': 2}
+    df['Network Congestion'] = df['Network Congestion'].astype(str).str.strip().map(congestion_map)
+    df.dropna(subset=['Network Congestion'], inplace=True)
+    df['Network Congestion'] = df['Network Congestion'].astype(int)
+    
+    df['Modulation Scheme'] = df['Modulation Scheme'].astype(str).str.strip()
+    
+    print(f"✅ Đã làm sạch dữ liệu. Còn lại {len(df)} mẫu.")
+
+    # ==============================================================================
+    # 🚨 QUAN TRỌNG: LOẠI BỎ CÁC CỘT GÂY DATA LEAKAGE 🚨
+    # ==============================================================================
+    leakage_cols = ['Signal Strength (dBm)']
+    print(f"\n✂️ Đang loại bỏ các cột gây Leakage: {leakage_cols}")
+    # Chỉ drop những cột thực sự tồn tại trong df
+    cols_to_drop = [col for col in leakage_cols if col in df.columns]
+    df.drop(columns=cols_to_drop, inplace=True)
+    # ==============================================================================
+    
+    # --- 4️⃣ Xác định feature types ---
     X = df.drop(columns=[target_col])
+    y = df[target_col]
     
-    # Scale chỉ features
-    scaler = MinMaxScaler()
-    X_scaled = scaler.fit_transform(X)
+    categorical_features = []
+    numerical_features = []
     
-    # Tạo DataFrame đã scale
-    df_scaled = pd.DataFrame(X_scaled, columns=X.columns)
+    for col in X.columns:
+        if X[col].dtype == 'object' or col in ['Modulation Scheme', 'Network Congestion']:
+            categorical_features.append(col)
+        else:
+            numerical_features.append(col)
+            
+    print(f"🔍 Features còn lại để train ({len(X.columns)}): {list(X.columns)}")
     
-    # Thêm target vào (KHÔNG scale)
-    df_scaled[target_col] = y.values
+    # --- 5️⃣ Xử lý categorical features với Label Encoding ---
+    label_encoders = {}
     
-    print(f"\n✅ Scaled features: {len(X.columns)} columns")
-    print(f"✅ Target column '{target_col}' kept original: {y.unique()}")
-
-    # --- 6️⃣ Chia dữ liệu train/test ---
-    train_df, test_df = train_test_split(df_scaled, test_size=0.2, random_state=42, stratify=y)
-
-    # --- 7️⃣ Tạo folder lưu kết quả ---
+    for col in categorical_features:
+        le = LabelEncoder()
+        X[col] = le.fit_transform(X[col])
+        label_encoders[col] = le
+    
+    # --- 6️⃣ Chuẩn hóa numerical features ---
+    scaler = MinMaxScaler(feature_range=(-1, 1))
+    
+    if numerical_features:
+        X_scaled_num = scaler.fit_transform(X[numerical_features])
+        X_processed = pd.DataFrame(X_scaled_num, columns=numerical_features, index=X.index)
+        for col in categorical_features:
+            X_processed[col] = X[col].values
+    else:
+        X_processed = X.copy()
+    
+    df_processed = X_processed.copy()
+    df_processed[target_col] = y.values
+    
+    # --- 7️⃣ CHIA TRAIN/TEST ---
+    train_df, test_df = train_test_split(
+        df_processed, 
+        test_size=0.2, 
+        random_state=42, 
+        stratify=df_processed[target_col]
+    )
+    
+    # --- 8️⃣ Lưu kết quả ---
     os.makedirs(output_folder, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
-
-    # --- 8️⃣ Lưu dữ liệu và encoder/scaler ---
+    
     train_path = os.path.join(output_folder, "train.csv")
     test_path = os.path.join(output_folder, "test.csv")
-    scaler_path = os.path.join(model_dir, "minmax_scaler.pkl")
-    encoder_path = os.path.join(model_dir, "onehot_encoder.pkl")
-
+    
     train_df.to_csv(train_path, index=False)
     test_df.to_csv(test_path, index=False)
-    joblib.dump(scaler, scaler_path)
-    joblib.dump(onehot_encoder, encoder_path)
-
-    print("\n✅ Data processing completed!")
+    
+    # Lưu metadata (cập nhật lại danh sách feature mới)
+    joblib.dump(scaler, os.path.join(model_dir, "minmax_scaler.pkl"))
+    joblib.dump(label_encoders, os.path.join(model_dir, "label_encoders.pkl"))
+    
+    feature_info = {
+        'numerical_features': numerical_features,
+        'categorical_features': categorical_features,
+        'target_mapping': rf_link_quality_map,
+        'all_features': list(X_processed.columns) + [target_col]
+    }
+    joblib.dump(feature_info, os.path.join(model_dir, "feature_info.pkl"))
+    
+    print(f"\n✅ Xử lý hoàn tất (Đã loại bỏ Leakage)!")
     print(f"📁 Train set saved to: {train_path}")
     print(f"📁 Test set saved to: {test_path}")
-    print(f"📁 Scaler saved to: {scaler_path}")
-    print(f"📁 Encoder saved to: {encoder_path}")
     
-    print(f"\n📊 Train set class distribution:")
-    print(train_df[target_col].value_counts().sort_index())
-    print(f"\n📊 Test set class distribution:")
-    print(test_df[target_col].value_counts().sort_index())
-
     return train_df, test_df
 
-
 if __name__ == "__main__":
-    # Ví dụ chạy thử
-    input_csv = "data/raw/wireless_communication_dataset.csv"  
-    process_data(input_csv)
+    process_data("data/raw/wireless_communication_dataset.csv")
