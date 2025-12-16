@@ -1,93 +1,95 @@
-# File: services/recommendation_service.py
 import json
 import os
 import logging
-from typing import Dict, Any, List, Optional
-
-# KHÔNG CẦN import ModelWrapper hay Preprocessor nữa
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
 class RecommendationService:
     def __init__(self, base_dir: str):
         self.config = {}
-        self.ranges = {} # Để lưu trữ min/max/mean
-
-        # 1. Tải file recommendations.json 
+        
+        # Đường dẫn file json
         reco_path = os.path.join(base_dir, "server", "data", "recommendations", "recommendations.json")
+        
         try:
-            with open(reco_path, 'r', encoding='utf-8') as f:
-                self.config = json.load(f)
-            logger.info("✅ Tải thành công recommendations.json")
+            if os.path.exists(reco_path):
+                with open(reco_path, 'r', encoding='utf-8') as f:
+                    self.config = json.load(f)
+                logger.info("✅ RecommendationService: Loaded recommendations.json")
+            else:
+                logger.warning(f"⚠️ RecommendationService: File not found at {reco_path}")
         except Exception as e:
-            logger.error(f"❌ Lỗi khi tải recommendations.json: {e}")
-
-        # 2. Tải file network_ranges.json 
-        ranges_path = os.path.join(base_dir, "config", "network_ranges.json")
-        try:
-            with open(ranges_path, 'r', encoding='utf-8') as f:
-                self.ranges = json.load(f)
-            logger.info("✅ Tải thành công network_ranges.json")
-        except Exception as e:
-            logger.error(f"❌ Lỗi khi tải network_ranges.json: {e}")
+            logger.error(f"❌ Error loading recommendations: {e}")
 
     def _get_problem_id(self, params: Dict[str, Any]) -> Optional[str]:
         """
-        Dùng kiến thức từ ảnh Feature Importance
-        để tìm ra VẤN ĐỀ (root cause)
+        Xác định nguyên nhân gốc rễ (Root Cause Analysis)
+        Dựa trên Feature Importance: Congestion > Signal > Speed > Distance
         """
         
-        # Ưu tiên 1: Signal Strength (Mean: -69.35)
-        if params.get('Signal Strength (dBm)', -70) < -80: 
+        # 1. Network Congestion (Quan trọng nhất theo biểu đồ)
+        # Giá trị có thể là 'High' (text) hoặc 3 (số) tùy vào thời điểm gọi
+        cong = params.get('Network Congestion')
+        if cong == 'High' or cong == 3:
+            return 'Network Congestion'
+
+        # 2. Signal Strength (Quan trọng nhì)
+        # Ngưỡng -90dBm là rất yếu
+        sig = params.get('Signal Strength (dBm)', -70)
+        if sig < -90:
             return 'Signal Strength (dBm)'
+
+        # 3. User Speed (m/s)
+        # 15 m/s ~ 54 km/h
+        speed = params.get('User Speed (m/s)', 0)
+        if speed > 15:
+            return 'User Speed (m/s)'
+
+        # 4. Distance from Base Station (m)
+        dist = params.get('Distance from Base Station (m)', 0)
+        if dist > 800:
+            return 'Distance from Base Station (m)'
+
+        # 5. Battery Level (%) - Ít quan trọng với model nhưng dễ sửa với User
+        batt = params.get('Battery Level (%)', 100)
+        if batt < 20:
+            return 'Battery Level (%)'
             
-        # Ưu tiên 2: PDR (%) (Mean: 75.0)
-        if params.get('PDR (%)', 100) < 80: 
-            return 'PDR (%)'
-            
-        # Ưu tiên 3: SNR (dB) (Mean: 17.32)
-        if params.get('SNR (dB)', 99) < 15: 
-            return 'SNR (dB)'
-            
-        # Ưu tiên 4: Handover Events (Mean: 1.98)
-        if params.get('Handover Events', 0) >= 3:
-            return 'Handover Events'
-            
-        # Ưu tiên 5: Latency (ms) (Mean: 50.77)
-        if params.get('Latency (ms)', 0) > 70:
-            return 'Latency (ms)'
-            
-            
-        return None # Không tìm thấy vấn đề cụ thể
+        return None
 
     def get_recommendation(self, params: Dict[str, Any], prediction_label: str) -> str:
         """
-        Lấy lời khuyên dựa trên logic ưu tiên
+        Tạo lời khuyên dựa trên nhãn dự đoán và thông số đầu vào
         """
+        # Lấy thông báo chung (Default message)
+        default_msgs = self.config.get("default_messages", {})
+        base_msg = default_msgs.get(prediction_label, "Chất lượng mạng chưa xác định.")
         
-        # 1. Lấy thông báo mặc định trước
-        default_messages = self.config.get("default_messages", {})
-        recommendation = default_messages.get(prediction_label, "Không có lời khuyên.")
-        
-        # 2. Nếu kết quả Tốt, trả về luôn
+        # Nếu mạng Tốt, không cần khuyên gì thêm
         if prediction_label == "Good":
-            return recommendation
-            
-        # 3. Nếu Poor/Moderate, tìm nguyên nhân gốc (root cause)
-        try:
-            problem_id = self._get_problem_id(params)
-            
-            # 4. Nếu tìm thấy vấn đề, lấy lời khuyên cụ thể từ JSON
-            if problem_id:
-                specific_recommendation = self.config.get("recommendations", {}).get(problem_id)
-                if specific_recommendation:
-                    logger.info(f"[Recommend] AI xác định vấn đề: {problem_id}")
-                    # Kết hợp thông báo chung + lời khuyên cụ thể
-                    return f"{recommendation} <strong>Nguyên nhân chính:</strong> {specific_recommendation}"
-            
-            # 5. Nếu không tìm thấy vấn đề cụ thể, trả về thông báo mặc định
-            return recommendation
+            return base_msg
 
-        except Exception as e:
-            logger.error(f"Lỗi khi tạo recommendation: {e}")
-            return default_messages.get(prediction_label, "Lỗi khi tạo lời khuyên.")
+        # Nếu mạng Kém/Trung bình, tìm nguyên nhân
+        problem_id = self._get_problem_id(params)
+        
+        if problem_id:
+            advice_map = self.config.get("recommendations", {})
+            advice = advice_map.get(problem_id)
+            
+            if advice:
+                # Format HTML để hiển thị đẹp trên React
+                return f"{base_msg} <br/><br/>👉 <b>Lời khuyên:</b> {advice}"
+        
+        return base_msg
+
+# Test nhanh (Optional)
+if __name__ == "__main__":
+    # Giả lập đường dẫn để test
+    service = RecommendationService(base_dir=".")
+    sample_params = {
+        "Network Congestion": "High",
+        "Signal Strength (dBm)": -95,
+        "User Speed (m/s)": 5
+    }
+    print(service.get_recommendation(sample_params, "Poor"))

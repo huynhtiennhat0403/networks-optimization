@@ -1,41 +1,36 @@
 {
   "problem_identifiers": {
-    "SNR (dB)": {
-      "name": "Tín hiệu (SNR)",
-      "bad_if": "low"
-    },
-    "Latency (ms)": {
-      "name": "Độ trễ (Latency)",
-      "bad_if": "high"
-    },
-    "PDR (%)": {
-      "name": "Tỷ lệ mất gói (PDR)",
-      "bad_if": "low"
-    },
-    "Handover Events": {
-      "name": "Chuyển vùng (Handover)",
-      "bad_if": "high"
-    },
-    "Retransmission Count": {
-      "name": "Gói tin gửi lại",
-      "bad_if": "high"
-    },
     "Network Congestion": {
-      "name": "Nghẽn mạng",
+      "name": "Tắc nghẽn mạng",
+      "bad_if": "High"
+    },
+    "Signal Strength (dBm)": {
+      "name": "Cường độ tín hiệu",
+      "bad_if": "low"
+    },
+    "User Speed (m/s)": {
+      "name": "Tốc độ di chuyển",
       "bad_if": "high"
+    },
+    "Distance from Base Station (m)": {
+      "name": "Khoảng cách trạm phát",
+      "bad_if": "high"
+    },
+    "Battery Level (%)": {
+      "name": "Mức Pin thiết bị",
+      "bad_if": "low"
     }
   },
   "recommendations": {
-    "SNR (dB)": "Tín hiệu mạng (SNR) của bạn yếu. Nếu dùng Wi-Fi, hãy di chuyển đến gần router. Nếu dùng 4G/5G, hãy thử ra gần cửa sổ.",
-    "Latency (ms)": "Mạng đang bị nghẽn (PING/Latency quá cao). Hãy thử ngắt bớt các thiết bị đang tải nặng (download, streaming) hoặc sử dụng mạng vào thời điểm khác.",
-    "PDR (%)": "Tỷ lệ mất gói (PDR) cao, có thể do nhiễu sóng. Hãy thử đổi kênh Wi-Fi hoặc khởi động lại router.",
-    "Handover Events": "Bạn đang di chuyển nhanh qua khu vực sóng yếu (Handover Events cao). Chất lượng mạng sẽ cải thiện khi bạn vào vùng phủ sóng tốt hơn.",
-    "Retransmission Count": "Dữ liệu liên tục phải gửi lại (Retransmission). Đây có thể là do nhiễu sóng hoặc tín hiệu không ổn định.",
-    "Network Congestion": "Mức độ nghẽn mạng (Congestion) cao. Hãy giảm bớt số lượng thiết bị đang kết nối hoặc chờ đợi qua giờ cao điểm."
+    "Network Congestion": "Khu vực này đang có quá nhiều người sử dụng (Nghẽn mạng cao). Hãy thử tắt bớt các thiết bị khác hoặc chờ qua giờ cao điểm.",
+    "Signal Strength (dBm)": "Sóng quá yếu (dưới -90 dBm). Hãy di chuyển ra gần cửa sổ hoặc không gian thoáng để bắt sóng tốt hơn.",
+    "User Speed (m/s)": "Bạn đang di chuyển quá nhanh (>40km/h). Việc chuyển trạm (Handover) liên tục gây mất ổn định. Hãy dừng lại nếu cần kết nối quan trọng.",
+    "Distance from Base Station (m)": "Bạn đang ở quá xa trạm phát sóng (>800m). Hãy cố gắng di chuyển về phía trung tâm hoặc nơi có cột sóng gần hơn.",
+    "Battery Level (%)": "Pin yếu (<20%) làm giảm công suất anten thu phát. Hãy cắm sạc hoặc bật chế độ tiết kiệm pin để duy trì kết nối."
   },
   "default_messages": {
-    "Poor": "Chất lượng mạng Kém. Hãy thử khởi động lại router và kiểm tra lại vị trí.",
-    "Moderate": "Chất lượng mạng Trung bình. Mạng khá ổn định nhưng có thể chậm vào giờ cao điểm.",
-    "Good": "Chất lượng mạng Tốt. Mạng hoạt động lý tưởng cho mọi tác vụ."
+    "Poor": "Chất lượng mạng Kém. Kết nối chập chờn, khó xem video hoặc gọi điện.",
+    "Moderate": "Chất lượng mạng Trung bình. Đủ để lướt web nhưng có thể lag khi xem video HD.",
+    "Good": "Chất lượng mạng Tốt. Thoải mái xem phim, chơi game và gọi video."
   }
 }

@@ -1,4 +1,5 @@
-import socketio
+import socket
+import json
 import time
 import speedtest
 import psutil
@@ -9,52 +10,31 @@ import logging
 
 # --- Cấu hình logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("Worker")
+logger = logging.getLogger("TCP_Worker")
 
-# --- Địa chỉ Server ---
-SERVER_URL = "http://localhost:8000"
-SOCKETIO_PATH = "/ws/socket.io" 
+# --- Cấu hình kết nối TCP ---
+SERVER_IP = '127.0.0.1'
+SERVER_PORT = 9500       
+BUFFER_SIZE = 4096
 
-# --- 1. Đo Speedtest (Latency & Throughput) ---
+# --- 1. Các hàm đo đạc (Giữ nguyên logic cũ) ---
 def get_speed_metrics():
-    """
-    Sử dụng speedtest-cli để đo lường
-    - Latency (ping)
-    - Throughput (download)
-    """
     try:
-        logger.info("Đang chạy speedtest...")
+        logger.info("Dang chay speedtest...")
         s = speedtest.Speedtest()
         s.get_best_server()
         s.download()
-        
         results = s.results.dict()
-        
-        latency_ms = results['ping']
-        # Chuyển đổi từ bits/s sang Megabits/s
-        throughput_mbps = results['download'] / 1_000_000 
-        
-        logger.info(f"Speedtest thành công: Latency={latency_ms:.2f} ms, Throughput={throughput_mbps:.2f} Mbps")
-        return latency_ms, throughput_mbps
-        
+        return results['ping'], results['download'] / 1_000_000
     except Exception as e:
-        logger.warning(f"Không thể đo speedtest: {e}")
-        return None, None
+        logger.warning(f"Loi speedtest: {e}")
+        # Trả về giá trị giả lập nếu lỗi (để test code mạng)
+        return 45.0, 50.0 
 
-# --- 2. Đo Pin ---
 def get_battery_level():
-    """
-    Sử dụng psutil để lấy % pin hiện tại
-    """
     battery = psutil.sensors_battery()
-    if battery:
-        logger.info(f"Đo pin thành công: {battery.percent}%")
-        return battery.percent
-    else:
-        logger.info("Không phát hiện thấy pin (có thể là máy bàn), mặc định 100%")
-        return 100 
+    return battery.percent if battery else 100
 
-# --- 3. Đo Cường độ Sóng (Signal Strength - dBm) ---
 def get_signal_strength():
     """
     Sử dụng các lệnh hệ thống để lấy cường độ sóng (dBm).
@@ -108,94 +88,64 @@ def get_signal_strength():
     # Đảm bảo giá trị nằm trong phạm vi mô hình của bạn
     return max(-120.0, min(-50.0, signal_dbm))
 
-
-# --- 4. Khởi chạy Client Socket ---
-
-def run_measurement_task(sio_client):
+# --- 2. Gửi dữ liệu qua TCP ---
+def send_data_via_tcp(data):
     """
-    Chạy đo đạc MỘT LẦN và gửi kết quả.
+    Hàm cốt lõi của Lập trình mạng: Tạo socket, connect, send, recv
     """
-    logger.info("--- Bắt đầu đo đạc ---")
-    
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        # 1. Đo các thông số
-        latency, throughput = get_speed_metrics()
-        battery = get_battery_level()
-        signal = get_signal_strength()
+        logger.info(f"Dang ket noi toi TCP Server {SERVER_IP}:{SERVER_PORT}...")
+        client_socket.connect((SERVER_IP, SERVER_PORT))
         
-        # 2. Tạo payload HOẶC GỬI LỖI
-        if latency is not None and throughput is not None:
-            payload = {
+        # Serialize JSON và encode sang bytes
+        message = json.dumps(data).encode('utf-8')
+        
+        # Gửi dữ liệu
+        client_socket.sendall(message)
+        logger.info(f"Da gui {len(message)} bytes du lieu.")
+
+        # Nhận phản hồi từ Server (ACK hoặc Kết quả dự đoán)
+        response = client_socket.recv(BUFFER_SIZE)
+        logger.info(f"Phan hoi tu Server: {response.decode('utf-8')}")
+
+    except ConnectionRefusedError:
+        logger.error("Khong the ket noi. Server TCP co dang chay khong?")
+    except Exception as e:
+        logger.error(f"Loi TCP: {e}")
+    finally:
+        client_socket.close()
+        logger.info("Da dong ket noi.")
+
+# --- 3. Vòng lặp chính ---
+def start_worker():
+    logger.info("Worker khoi dong (TCP Mode)...")
+    
+    while True:
+        # Thu thập dữ liệu
+        latency, throughput = get_speed_metrics()
+        
+        payload = {
+            "type": "worker_data", # Định danh loại tin nhắn
+            "data": {
                 "latency": latency,
                 "throughput": throughput,
-                "battery_level": battery,
-                "signal_strength": signal
+                "battery_level": get_battery_level(),
+                "signal_strength": get_signal_strength(),
+                # Thêm context mặc định nếu Worker chạy tự động
+                "user_speed": 10.0, # Giả lập vận tốc
+                "user_activity": "streaming",
+                "device_type": "laptop",
+                "location": "home",
+                "connection_type": "4g"
             }
-            
-            # 3. Gửi dữ liệu lên server
-            logger.info(f"Gửi 'worker_metrics': {payload}")
-            sio_client.emit("worker_metrics", payload)
-        else:
-            logger.error("Đo speedtest thất bại, gửi 'worker_error' lên server.")
-            sio_client.emit("worker_error", {
-                "error": "Speedtest failed (403 Forbidden or other issue)"
-            })
-            
-    except Exception as e:
-        logger.error(f"Lỗi nghiêm trọng trong run_measurement_task: {e}")
-        try:
-            sio_client.emit("worker_error", {"error": str(e)})
-        except:
-            pass # Bỏ qua nếu không gửi được
-
-    logger.info("--- Đo đạc hoàn tất ---")
-
-def start_worker():
-    sio = socketio.Client(logger=True, engineio_logger=True)
-
-    @sio.event
-    def connect():
-        logger.info("✅ Đã kết nối thành công tới Server!")
-
-    @sio.event
-    def connect_error(data):
-        logger.error(f"❌ Kết nối thất bại: {data}")
-
-    @sio.event
-    def disconnect():
-        logger.warning("🔌 Đã ngắt kết nối khỏi Server.")
+        }
         
-    # --- MỚI: Lắng nghe lệnh từ Server ---
-    @sio.on('start_measurement')
-    def on_start_measurement():
-        """
-        Server yêu cầu worker bắt đầu đo.
-        """
-        logger.info("⚡ Nhận lệnh 'start_measurement' từ server. Bắt đầu đo...")
-        try:
-            # Chạy tác vụ đo đạc
-            run_measurement_task(sio)
-        except Exception as e:
-            logger.error(f"Lỗi khi chạy tác vụ đo đạc: {e}")
-
-    try:
-        logger.info(f"Đang kết nối tới server {SERVER_URL}...")
-        sio.connect(SERVER_URL, socketio_path=SOCKETIO_PATH)
+        # Gửi qua TCP
+        send_data_via_tcp(payload)
         
-        # --- Không còn vòng lặp while True ---
-        logger.info("Worker đang chạy và chờ lệnh 'start_measurement'...")
-        # Giữ script sống để lắng nghe sự kiện
-        sio.wait() 
-            
-    except socketio.exceptions.ConnectionError as e:
-        logger.critical(f"Không thể kết nối tới server. Server có đang chạy không? {e}")
-    except KeyboardInterrupt:
-        logger.info("Ngắt bởi người dùng.")
-    finally:
-        if sio.connected:
-            sio.disconnect()
-            logger.info("Đã ngắt kết nối.")
+        # Nghỉ 10 giây trước khi đo lại
+        time.sleep(10)
 
-# --- Điểm vào ---
 if __name__ == "__main__":
     start_worker()
