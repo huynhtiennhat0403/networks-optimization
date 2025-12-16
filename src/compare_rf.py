@@ -15,6 +15,10 @@ def train_and_evaluate(
     
     # --- 1️⃣ Chuẩn bị dữ liệu ---
     # Load dữ liệu
+    if not os.path.exists(train_original_path) or not os.path.exists(train_synthetic_path) or not os.path.exists(test_path):
+        print("❌ Lỗi: Không tìm thấy file dữ liệu. Hãy đảm bảo bạn đã chạy processing_data.py và smote.py")
+        return
+
     df_train_orig = pd.read_csv(train_original_path)
     df_train_syn = pd.read_csv(train_synthetic_path)
     df_test = pd.read_csv(test_path)
@@ -54,6 +58,9 @@ def train_and_evaluate(
         # Predict
         y_pred = rf.predict(X_test)
         
+        # Tính Accuracy NGAY TẠI ĐÂY để hiển thị
+        acc = accuracy_score(y_test, y_pred)
+        
         # Vẽ Confusion Matrix
         cm = confusion_matrix(y_test, y_pred)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
@@ -61,10 +68,11 @@ def train_and_evaluate(
         # Màu sắc khác nhau cho mỗi biểu đồ
         cmap = ['Blues', 'Oranges', 'Greens'][i]
         disp.plot(ax=axes[i], cmap=cmap, values_format='d')
-        axes[i].set_title(f"{name}\n({len(df_train)} samples)")
+        
+        # --- CẬP NHẬT TIÊU ĐỀ CÓ ACCURACY ---
+        axes[i].set_title(f"{name}\n({len(df_train)} samples)\nAccuracy: {acc:.2%}", fontsize=12, fontweight='bold')
         
         # Lưu kết quả text để in ra sau
-        acc = accuracy_score(y_test, y_pred)
         report = classification_report(y_test, y_pred, target_names=class_names, output_dict=True)
         
         res_str = f"\n🔹 MODEL: {name}\n"
@@ -80,7 +88,6 @@ def train_and_evaluate(
     plot_path = os.path.join(output_dir, 'comparison_3_models.png')
     plt.savefig(plot_path)
     print(f"\n📊 Đã lưu biểu đồ so sánh tại: {plot_path}")
-    plt.show()
     
     # --- 4️⃣ In kết quả chi tiết ---
     print(f"\n{'='*20} KẾT QUẢ CHI TIẾT {'='*20}")

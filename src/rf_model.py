@@ -51,7 +51,8 @@ def train_and_evaluate_final(
         max_depth=20,
         max_features='log2',
         min_samples_leaf=1,
-        min_samples_split=2
+        min_samples_split=2,
+        criterion='gini'
     )
     rf_final.fit(X_train, y_train)
     
