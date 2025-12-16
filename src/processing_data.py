@@ -44,10 +44,21 @@ def process_data(input_path, output_folder="data/processed", model_dir='models')
     # ==============================================================================
     # 🚨 QUAN TRỌNG: LOẠI BỎ CÁC CỘT GÂY DATA LEAKAGE 🚨
     # ==============================================================================
-    leakage_cols = ['Signal Strength (dBm)']
-    print(f"\n✂️ Đang loại bỏ các cột gây Leakage: {leakage_cols}")
-    # Chỉ drop những cột thực sự tồn tại trong df
-    cols_to_drop = [col for col in leakage_cols if col in df.columns]
+    leakage_cols = [
+        # 'Signal Strength (dBm)', 
+        'SNR (dB)',      # Khuyên bỏ: Vì SNR cao thì Quality chắc chắn tốt
+        'BER',           # Khuyên bỏ: Bit Error Rate thấp thì Quality tốt
+        'PDR (%)',       # Khuyên bỏ: Packet Delivery Ratio cao thì Quality tốt
+        'Retransmission Count' # Khuyên bỏ: Số lần gửi lại liên quan trực tiếp đến lỗi mạng
+    ]
+    
+    # Các cột có thể không quan trọng (Feature Selection - Optional)
+    irrelevant_cols = ['User Direction (degrees)', 'Modulation Scheme'] # Hướng đi thường ít ảnh hưởng nếu Omni-directional antenna
+    
+    cols_to_remove = leakage_cols + irrelevant_cols
+    
+    print(f"\n✂️ Đang loại bỏ các cột Leakage & Không quan trọng: {cols_to_remove}")
+    cols_to_drop = [col for col in cols_to_remove if col in df.columns]
     df.drop(columns=cols_to_drop, inplace=True)
     # ==============================================================================
     
@@ -59,7 +70,7 @@ def process_data(input_path, output_folder="data/processed", model_dir='models')
     numerical_features = []
     
     for col in X.columns:
-        if X[col].dtype == 'object' or col in ['Modulation Scheme', 'Network Congestion']:
+        if X[col].dtype == 'object' or col in ['Network Congestion']:
             categorical_features.append(col)
         else:
             numerical_features.append(col)
@@ -75,7 +86,7 @@ def process_data(input_path, output_folder="data/processed", model_dir='models')
         label_encoders[col] = le
     
     # --- 6️⃣ Chuẩn hóa numerical features ---
-    scaler = MinMaxScaler(feature_range=(-1, 1))
+    scaler = MinMaxScaler()
     
     if numerical_features:
         X_scaled_num = scaler.fit_transform(X[numerical_features])
