@@ -1,7 +1,6 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-socketio
-websocket-client
 joblib
 scikit-learn
 pandas
@@ -9,3 +8,6 @@ numpy
 requests
 psutil
 speedtest-cli
+imbalanced-learn
+matplotlib
+seaborn
