@@ -52,7 +52,7 @@ def train_and_evaluate(
         y_train = df_train[target_col]
         
         # Train
-        rf = RandomForestClassifier(n_estimators=100, random_state=42)
+        rf = RandomForestClassifier(n_estimators=100, random_state=42, criterion='gini')
         rf.fit(X_train, y_train)
         
         # Predict
