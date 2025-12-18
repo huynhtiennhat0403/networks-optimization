@@ -46,6 +46,7 @@ api.interceptors.response.use(
  */
 export const predictSimple = async (data) => {
   // 'data' object sẽ chứa tất cả 9 trường từ form
+  console.log('📤 Sending payload:', data);  
   const payload = {
     // 5 thông số đo đạc
     user_speed: data.user_speed,

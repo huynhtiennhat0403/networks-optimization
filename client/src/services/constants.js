@@ -89,21 +89,21 @@ export const DEFAULT_VALUES = {
   connection_type: '4g', 
 };
 
-// --- CẤU HÌNH HIỂN THỊ THAM SỐ (Đã lọc bỏ SNR, BER, PDR...) ---
+// --- CẤU HÌNH HIỂN THỊ THAM SỐ ---
 export const PARAMETER_DISPLAY = {
-  // Input gốc
-  'User Speed (m/s)': { label: 'Speed', unit: 'm/s', decimals: 2, category: 'mobility' },
-  'Signal Strength (dBm)': { label: 'Signal', unit: 'dBm', decimals: 1, category: 'signal' },
-  'Battery Level (%)': { label: 'Battery', unit: '%', decimals: 0, category: 'power' },
-  'Throughput (Mbps)': { label: 'Throughput', unit: 'Mbps', decimals: 1, category: 'performance' },
-  'Latency (ms)': { label: 'Latency', unit: 'ms', decimals: 1, category: 'performance' },
-
-  // Estimated Physic Params (Kết quả từ SmartEstimator mới)
-  'Network Congestion': { label: 'Congestion', unit: '', decimals: 0, category: 'environment' },
-  'Distance from Base Station (m)': { label: 'Est. Distance', unit: 'm', decimals: 1, category: 'environment' },
-  'Handover Events': { label: 'Handovers', unit: 'times', decimals: 0, category: 'mobility' },
-  'Power Consumption (mW)': { label: 'Est. Power', unit: 'mW', decimals: 1, category: 'power' },
-  'Transmission Power (dBm)': { label: 'TX Power', unit: 'dBm', decimals: 1, category: 'power' },
+    // User inputs (5)
+    'Throughput (Mbps)': { label: 'Throughput', unit: 'Mbps', category: 'performance', decimals: 1 },
+    'Latency (ms)': { label: 'Latency', unit: 'ms', category: 'performance', decimals: 1 },
+    'User Speed (m/s)': { label: 'Speed', unit: 'm/s', category: 'mobility', decimals: 2 },
+    'Signal Strength (dBm)': { label: 'Signal', unit: 'dBm', category: 'signal', decimals: 1 },
+    'Battery Level (%)': { label: 'Battery', unit: '%', category: 'power', decimals: 0 },
+    
+    // Estimated physical features (8)
+    'Network Congestion': { label: 'Network Congestion', category: 'environment', decimals: 0 },
+    'Distance from Base Station (m)': { label: 'Distance to Tower', unit: 'm', category: 'environment', decimals: 1 },
+    'Handover Events': { label: 'Handover Events', unit: 'times', category: 'mobility', decimals: 0 },
+    'Power Consumption (mW)': { label: 'Power Usage', unit: 'mW', category: 'power', decimals: 1 },
+    'Transmission Power (dBm)': { label: 'TX Power', unit: 'dBm', category: 'power', decimals: 1 },
 };
 
 export const PARAMETER_CATEGORIES = {

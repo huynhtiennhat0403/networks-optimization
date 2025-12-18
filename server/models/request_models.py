@@ -26,45 +26,20 @@ class SimplePredictRequest(BaseModel):
     Server tự estimate phần còn lại
     """
 
-    # Required fields (5 user inputs)
-    user_speed: float = Field(
-        ..., 
-        ge=0, 
-        le=108,
-        description="User speed in km/h (user manually inputs)",
-        example=30.0
-    )
-
-    battery_level: int = Field(
-        ..., 
-        ge=5, 
-        le=100, 
-        description="Device battery level in %",
-        example=80
-    )
-
+    user_speed: float = Field(..., ge=0, le=120)  # km/h
+    
+    battery_level: int = Field(..., ge=5, le=100)
+    
     signal_strength: float = Field(
-        ..., 
-        ge=-100, 
-        le=-40, 
+        ..., ge=-100, le=-40, 
         description="Signal strength in dBm (estimated from signal bars: 1-4)",
         example=-75.0
     )
-
-    latency: float = Field(
-        ...,
-        ge=1,
-        le=100, 
-        description="Latency in ms (user inputs from speedtest apps)",
-        example=45.5
-    )
-
-    throughput: float = Field(
-        ...,
-        ge=1,
-        le=100, 
-        description="Throughput in Mbps (user inputs from speedtest apps)",
-        example=50.2
+    
+    network_congestion: str = Field(
+        default="Medium",
+        description="Perceived congestion: Low, Medium, High",
+        example="Medium"
     )
     
     # Optional context fields

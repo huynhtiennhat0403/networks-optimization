@@ -97,10 +97,6 @@ class SmartEstimator:
             'Handover Events': int(handovers),
             'Power Consumption (mW)': round(power_consumption, 2),
             'Transmission Power (dBm)': round(tx_power, 2),
-            
-            # Giữ lại thông số input gốc để log hoặc hiển thị (Model không dùng train nhưng có thể cần)
-            'Throughput (Mbps)': float(throughput),
-            'Latency (ms)': float(latency)
         }
         
         logger.info(f"✅ Estimated params: {estimated_params}")

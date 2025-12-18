@@ -1,4 +1,4 @@
-"""
+""""
 Scenario Manager - Manages pre-defined network scenarios for Vietnam context
 Mode 2: Scenario Simulation
 """
@@ -40,22 +40,14 @@ class ScenarioManager:
                 "location": "Quận 1, Quận 3, Bình Thạnh",
                 "expected_quality": "Moderate",
                 "parameters": {
-                    'User Speed (m/s)': 8.5,  # ~30 km/h
-                    'User Direction (degrees)': 90.0,
-                    'Handover Events': 3,
-                    'Distance from Base Station (m)': 250.0,
+                    'User Speed (m/s)': 8.5,
                     'Signal Strength (dBm)': -78.0,
-                    'SNR (dB)': 15.0,
-                    'BER': 0.008,
-                    'Modulation Scheme': 'QPSK',
-                    'PDR (%)': 88.0,
-                    'Network Congestion': 1,  # Medium
-                    'Throughput (Mbps)': 35.0,
-                    'Latency (ms)': 45.0,
-                    'Retransmission Count': 4,
+                    'Battery Level (%)': 100,
+                    'Network Congestion': 'Medium',  
+                    'Distance from Base Station (m)': 250.0,
+                    'Handover Events': 3,
                     'Power Consumption (mW)': 550.0,
-                    'Battery Level (%)': 65.0,
-                    'Transmission Power (dBm)': 23.0
+                    'Transmission Power (dBm)': 23.0,
                 },
                 "challenges": [
                     "Nhiều tòa nhà cao tầng che chắn",
@@ -74,22 +66,14 @@ class ScenarioManager:
                 "location": "Bitexco, Landmark 81, Vietcombank Tower",
                 "expected_quality": "Good",
                 "parameters": {
-                    'User Speed (m/s)': 0.5,  # Gần như đứng yên
-                    'User Direction (degrees)': 0.0,
-                    'Handover Events': 0,
-                    'Distance from Base Station (m)': 120.0,
+                    'User Speed (m/s)': 0.5,
                     'Signal Strength (dBm)': -68.0,
-                    'SNR (dB)': 22.0,
-                    'BER': 0.002,
-                    'Modulation Scheme': '64-QAM',
-                    'PDR (%)': 96.0,
-                    'Network Congestion': 1,  # Medium (nhiều người dùng)
-                    'Throughput (Mbps)': 65.0,
-                    'Latency (ms)': 25.0,
-                    'Retransmission Count': 2,
+                    'Battery Level (%)': 100,
+                    'Network Congestion': 'Medium',  
+                    'Distance from Base Station (m)': 120.0,
+                    'Handover Events': 0,
                     'Power Consumption (mW)': 400.0,
-                    'Battery Level (%)': 85.0,  # Thường có sạc
-                    'Transmission Power (dBm)': 18.0
+                    'Transmission Power (dBm)': 18.0,
                 },
                 "challenges": [
                     "Tường bê tông dày",
@@ -108,22 +92,14 @@ class ScenarioManager:
                 "location": "The Coffee House, Highlands Coffee, Starbucks",
                 "expected_quality": "Moderate",
                 "parameters": {
-                    'User Speed (m/s)': 0.2,  # Ngồi yên
-                    'User Direction (degrees)': 0.0,
-                    'Handover Events': 0,
-                    'Distance from Base Station (m)': 80.0,
+                    'User Speed (m/s)': 0.2,
                     'Signal Strength (dBm)': -72.0,
-                    'SNR (dB)': 16.0,  # Nhiễu cao do đông người
-                    'BER': 0.006,
-                    'Modulation Scheme': 'QPSK',
-                    'PDR (%)': 90.0,
-                    'Network Congestion': 2,  # High
-                    'Throughput (Mbps)': 28.0,
-                    'Latency (ms)': 55.0,
-                    'Retransmission Count': 5,
-                    'Power Consumption (mW)': 480.0,
-                    'Battery Level (%)': 55.0,
-                    'Transmission Power (dBm)': 20.0
+                    'Battery Level (%)': 55,
+                    'Network Congestion': 'High',  
+                    'Distance from Base Station (m)': 80.0,
+                    'Handover Events': 1,
+                    'Power Consumption (mW)': 400.0,
+                    'Transmission Power (dBm)': 20.0,
                 },
                 "challenges": [
                     "Quá nhiều thiết bị cùng kết nối WiFi/4G",
@@ -142,22 +118,14 @@ class ScenarioManager:
                 "location": "Cao tốc TP.HCM - Long Thành, TP.HCM - Trung Lương",
                 "expected_quality": "Poor",
                 "parameters": {
-                    'User Speed (m/s)': 25.0,  # ~90 km/h
-                    'User Direction (degrees)': 45.0,
-                    'Handover Events': 4,
-                    'Distance from Base Station (m)': 650.0,  # Xa base station
+                    'User Speed (m/s)': 25.0,
                     'Signal Strength (dBm)': -92.0,
-                    'SNR (dB)': 10.0,
-                    'BER': 0.022,
-                    'Modulation Scheme': 'BPSK',
-                    'PDR (%)': 75.0,
-                    'Network Congestion': 0,  # Low (ít người dùng)
-                    'Throughput (Mbps)': 18.0,
-                    'Latency (ms)': 78.0,
-                    'Retransmission Count': 7,
-                    'Power Consumption (mW)': 780.0,  # Cao do tìm sóng
-                    'Battery Level (%)': 40.0,
-                    'Transmission Power (dBm)': 28.0
+                    'Battery Level (%)': 100,
+                    'Network Congestion': 'Low',  
+                    'Distance from Base Station (m)': 650.0,
+                    'Handover Events': 4,
+                    'Power Consumption (mW)': 780.0,
+                    'Transmission Power (dBm)': 28.0,
                 },
                 "challenges": [
                     "Khoảng cách xa base station",
@@ -177,22 +145,14 @@ class ScenarioManager:
                 "location": "Phố đi bộ Nguyễn Huệ, Landmark 81, Đầm Sen",
                 "expected_quality": "Poor",
                 "parameters": {
-                    'User Speed (m/s)': 0.8,  # Di chuyển chậm trong đám đông
-                    'User Direction (degrees)': 180.0,
-                    'Handover Events': 1,
-                    'Distance from Base Station (m)': 100.0,
+                    'User Speed (m/s)': 0.8,
                     'Signal Strength (dBm)': -85.0,
-                    'SNR (dB)': 8.0,  # Rất nhiễu
-                    'BER': 0.035,
-                    'Modulation Scheme': 'BPSK',
-                    'PDR (%)': 62.0,  # Packet loss cao
-                    'Network Congestion': 2,  # High
-                    'Throughput (Mbps)': 8.0,  # Rất thấp
-                    'Latency (ms)': 95.0,  # Rất cao
-                    'Retransmission Count': 9,
+                    'Battery Level (%)': 80,
+                    'Network Congestion': 'High',  
+                    'Distance from Base Station (m)': 100.0,
+                    'Handover Events': 1,
                     'Power Consumption (mW)': 850.0,
-                    'Battery Level (%)': 30.0,
-                    'Transmission Power (dBm)': 29.0
+                    'Transmission Power (dBm)': 29.0,
                 },
                 "challenges": [
                     "Quá tải mạng cực kỳ nghiêm trọng",
@@ -272,11 +232,6 @@ class ScenarioManager:
             'User Speed (m/s)',
             'Distance from Base Station (m)',
             'Signal Strength (dBm)',
-            'SNR (dB)',
-            'BER',
-            'PDR (%)',
-            'Throughput (Mbps)',
-            'Latency (ms)',
             'Power Consumption (mW)',
             'Battery Level (%)',
             'Transmission Power (dBm)'
@@ -295,16 +250,6 @@ class ScenarioManager:
                     new_value = max(0, min(30, new_value))
                 elif param == 'Signal Strength (dBm)':
                     new_value = max(-100, min(-40, new_value))
-                elif param == 'SNR (dB)':
-                    new_value = max(5, min(30, new_value))
-                elif param == 'BER':
-                    new_value = max(0.0001, min(0.05, new_value))
-                elif param == 'PDR (%)':
-                    new_value = max(50, min(100, new_value))
-                elif param == 'Throughput (Mbps)':
-                    new_value = max(1, min(100, new_value))
-                elif param == 'Latency (ms)':
-                    new_value = max(1, min(100, new_value))
                 elif param == 'Battery Level (%)':
                     new_value = max(5, min(100, new_value))
                 
@@ -355,14 +300,16 @@ if __name__ == "__main__":
     print(f"\nOriginal vs Randomized:")
     original = manager.get_scenario(3)
     
-    key_params = ['Throughput (Mbps)', 'Latency (ms)', 'SNR (dB)']
+    # Sửa: Dùng features vật lý mới
+    key_params = ['Signal Strength (dBm)', 'Power Consumption (mW)', 'Transmission Power (dBm)']
     for param in key_params:
-        orig_val = original['parameters'][param]
-        rand_val = randomized['parameters'][param]
-        diff = ((rand_val - orig_val) / orig_val) * 100
-        print(f"  {param}:")
-        print(f"    Original: {orig_val:.2f}")
-        print(f"    Randomized: {rand_val:.2f} ({diff:+.1f}%)")
+        if param in original['parameters']:
+            orig_val = original['parameters'][param]
+            rand_val = randomized['parameters'][param]
+            diff = ((rand_val - orig_val) / orig_val) * 100 if orig_val != 0 else 0
+            print(f"  {param}:")
+            print(f"    Original: {orig_val:.2f}")
+            print(f"    Randomized: {rand_val:.2f} ({diff:+.1f}%)")
     
     print("\n" + "="*80)
     print("✅ ALL TESTS COMPLETED")
