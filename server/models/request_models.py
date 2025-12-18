@@ -31,16 +31,30 @@ class SimplePredictRequest(BaseModel):
     battery_level: int = Field(..., ge=5, le=100)
     
     signal_strength: float = Field(
-        ..., ge=-100, le=-40, 
+        ..., ge=-120, le=-40, 
         description="Signal strength in dBm (estimated from signal bars: 1-4)",
         example=-75.0
     )
-    
-    network_congestion: str = Field(
-        default="Medium",
-        description="Perceived congestion: Low, Medium, High",
-        example="Medium"
+
+    latency: float = Field(
+        ..., 
+        ge=0, 
+        description="Network latency in ms",
+        example=45.0
     )
+
+    throughput: float = Field(
+        ..., 
+        ge=0, 
+        description="Network throughput in Mbps",
+        example=50.0
+    )
+    
+    # network_congestion: str = Field(
+    #     default="Medium",
+    #     description="Perceived congestion: Low, Medium, High",
+    #     example="Medium"
+    # )
     
     # Optional context fields
     user_activity: Optional[str] = Field(
