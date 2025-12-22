@@ -44,19 +44,17 @@ class SmartEstimator:
         # Convert speed km/h -> m/s
         user_speed_ms = user_speed_kmh / 3.6
 
-        # --- HEURISTIC LOGIC (Mô phỏng ngược generate_dataset.py) ---
+        # --- HEURISTIC LOGIC ---
 
         # 1. Network Congestion (Low/Medium/High)
         # Logic: Latency cao hoặc Throughput thấp -> High Congestion
         congestion = self._estimate_congestion(latency, throughput, user_activity)
         
         # 2. Distance from Base Station (m)
-        # Logic gốc: 1000 - (sig_norm * 900)
-        # Ta đảo ngược: Signal càng yếu -> Distance càng xa
-        # Signal: -120 (xa) -> -50 (gần)
         sig_norm = (signal - (-120)) / (-50 - (-120)) # 0..1
         distance = 1000 - (sig_norm * 900)
-        # Thêm chút sai số ngẫu nhiên cho tự nhiên (không bắt buộc)
+        
+        # Thêm chút sai số ngẫu nhiên cho tự nhiên 
         distance = max(10.0, distance)
 
         # 3. Handover Events

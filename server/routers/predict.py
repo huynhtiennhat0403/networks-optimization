@@ -42,7 +42,6 @@ def get_model_wrapper():
         raise HTTPException(status_code=503, detail="Model not loaded")
     return _model_wrapper
 
-
 def get_scenario_manager():
     """Dependency to get scenario manager"""
     if _scenario_manager is None:

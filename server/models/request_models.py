@@ -50,12 +50,6 @@ class SimplePredictRequest(BaseModel):
         example=50.0
     )
     
-    # network_congestion: str = Field(
-    #     default="Medium",
-    #     description="Perceived congestion: Low, Medium, High",
-    #     example="Medium"
-    # )
-    
     # Optional context fields
     user_activity: Optional[str] = Field(
         default="browsing",

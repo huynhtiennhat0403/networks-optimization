@@ -5,15 +5,15 @@ FIXED: TCP Thread -> Socket.IO Bridge
 FIXED: 'NoneType' object is not a mapping error
 """
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 import logging
 import sys
 import os
-import time
 import asyncio 
+import threading
 
 from .tcp_server import TCPServer
 
@@ -83,6 +83,7 @@ sio = socketio.AsyncServer(
 socket_app = socketio.ASGIApp(sio, other_asgi_app=app, socketio_path="/ws/socket.io")
 
 # Global State
+state_lock = threading.Lock()
 global_state = {
     "metrics": None,
     "context": None, # Ban đầu là None
@@ -131,12 +132,13 @@ async def startup_event():
         raise
 
 # === HÀM CALLBACK XỬ LÝ DỮ LIỆU TỪ TCP ===
+# === HÀM CALLBACK XỬ LÝ DỮ LIỆU TỪ TCP ===
 def process_tcp_data(payload: dict):
     """
     Hàm này chạy trong Thread riêng của TCP Server.
     """
     global smart_estimator, model_wrapper, recommendation_service
-    global global_state, server_loop, sio 
+    global global_state, server_loop, sio, state_lock # <--- Nhớ thêm state_lock vào global
     
     try:
         if payload.get("type") != "worker_data":
@@ -144,10 +146,18 @@ def process_tcp_data(payload: dict):
 
         metrics_data = payload.get("data", {})
         
-        # Lấy context hiện tại từ React. Nếu None thì dùng dict rỗng {}
-        current_context = global_state.get("context") or {}
-        
-        # Gộp metrics từ Worker + Context từ React
+        # --- ĐỌC DỮ LIỆU AN TOÀN VỚI LOCK ---
+        current_context = {}
+        react_sid = None
+
+        with state_lock:
+            # Copy dữ liệu ra biến cục bộ để dùng, tránh giữ Lock quá lâu
+            if global_state.get("context"):
+                current_context = global_state["context"].copy()
+            
+            react_sid = global_state.get("react_sid")
+
+        # Gộp metrics từ Worker + Context (đã copy an toàn)
         combined_input = {**metrics_data, **current_context}
         
         # 1. Estimate
@@ -169,7 +179,6 @@ def process_tcp_data(payload: dict):
         logger.info(f"🔮 TCP Prediction: {result['prediction_label']}")
         
         # --- B. CẦU NỐI SANG REACTJS (BRIDGE) ---
-        react_sid = global_state.get("react_sid")
         
         if react_sid and server_loop:
             response_data = PredictionResponse(
@@ -190,9 +199,7 @@ def process_tcp_data(payload: dict):
                 sio.emit("prediction_update", response_data, to=react_sid),
                 server_loop
             )
-            logger.info(f"⚡ Đã bắn tín hiệu update sang React (SID: {react_sid})")
         else:
-            # Không log debug liên tục để đỡ rác log
             pass
 
         return result['prediction_label']
@@ -241,8 +248,9 @@ async def start_prediction(sid, data):
     React gửi context và bắt đầu phiên đo
     """
     logger.info(f"[{sid}] React bắt đầu phiên đo Real-time")
-    global_state["context"] = data
-    global_state["react_sid"] = sid
+    with state_lock:
+        global_state["context"] = data
+        global_state["react_sid"] = sid
 
 if __name__ == "__main__":
     uvicorn.run(

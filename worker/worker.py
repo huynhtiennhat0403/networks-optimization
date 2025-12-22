@@ -7,6 +7,7 @@ import subprocess
 import re
 import platform
 import logging
+import random
 
 # --- Cấu hình logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -17,7 +18,7 @@ SERVER_IP = '127.0.0.1'
 SERVER_PORT = 9500       
 BUFFER_SIZE = 4096
 
-# --- 1. Các hàm đo đạc (Giữ nguyên logic cũ) ---
+# --- 1. Các hàm đo đạc  ---
 def get_speed_metrics():
     try:
         logger.info("Dang chay speedtest...")
@@ -28,7 +29,7 @@ def get_speed_metrics():
         return results['ping'], results['download'] / 1_000_000
     except Exception as e:
         logger.warning(f"Loi speedtest: {e}")
-        # Trả về giá trị giả lập nếu lỗi (để test code mạng)
+        # Trả về giá trị giả lập nếu lỗi 
         return 45.0, 50.0 
 
 def get_battery_level():
@@ -45,13 +46,12 @@ def get_signal_strength():
     
     try:
         if os_type == "Windows":
-            cmd_output = subprocess.check_output("netsh wlan show interfaces", shell=True).decode('utf-8')
+            cmd_output = subprocess.check_output("netsh wlan show interfaces", shell=True).decode('utf-8', errors='ignore')
             # Windows thường chỉ trả về %
-            match = re.search(r"Signal\s*:\s*(\d+)%", cmd_output)
+            match = re.search(r":\s+(\d+)\s*%", cmd_output)
             if match:
                 signal_percent = int(match.group(1))
                 # Đây là một phép nội suy RẤT thô từ % sang dBm (dựa trên 4 vạch)
-                # (Bạn có thể cải thiện logic này)
                 if signal_percent > 90: signal_dbm = -55.0 # Rất mạnh
                 elif signal_percent > 80: signal_dbm = -65.0
                 elif signal_percent > 70: signal_dbm = -75.0 # 4 vạch
@@ -59,25 +59,6 @@ def get_signal_strength():
                 elif signal_percent > 30: signal_dbm = -95.0 # 2 vạch
                 else: signal_dbm = -105.0 # 1 vạch
                 logger.info(f"Đo sóng (Windows): {signal_percent}% -> {signal_dbm} dBm")
-                
-        elif os_type == "Darwin": # macOS
-            cmd_output = subprocess.check_output(
-                "/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport -I",
-                shell=True
-            ).decode('utf-8')
-            # macOS trả về dBm trực tiếp (ví dụ: CtlRSSI: -54)
-            match = re.search(r"CtlRSSI:\s*(-?\d+)", cmd_output)
-            if match:
-                signal_dbm = float(match.group(1))
-                logger.info(f"Đo sóng (macOS): {signal_dbm} dBm")
-
-        elif os_type == "Linux":
-            cmd_output = subprocess.check_output("iwconfig", shell=True).decode('utf-8')
-            # Linux trả về dBm trực tiếp (ví dụ: Signal level=-47 dBm)
-            match = re.search(r"Signal level=(-?\d+)\s*dBm", cmd_output)
-            if match:
-                signal_dbm = float(match.group(1))
-                logger.info(f"Đo sóng (Linux): {signal_dbm} dBm")
         
         else:
             logger.warning(f"Hệ điều hành {os_type} không hỗ trợ đo sóng, dùng mặc định.")
@@ -133,7 +114,7 @@ def start_worker():
                 "battery_level": get_battery_level(),
                 "signal_strength": get_signal_strength(),
                 # Thêm context mặc định nếu Worker chạy tự động
-                "user_speed": 10.0, # Giả lập vận tốc
+                "user_speed": random.randint(0, 20), # Giả lập vận tốc
                 "user_activity": "streaming",
                 "device_type": "laptop",
                 "location": "home",
